@@ -1,0 +1,1367 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Services;
+using System.IO;
+using System.Xml;
+
+/// <summary>
+///WsOuCard 的摘要说明
+/// </summary>
+[WebService(Namespace = "http://tempuri.org/")]
+[WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
+//若要允许使用 ASP.NET AJAX 从脚本中调用此 Web 服务，请取消对下行的注释。 
+// [System.Web.Script.Services.ScriptService]
+public class WsOuCard : System.Web.Services.WebService
+{
+
+    BLL.CBsPatient _objBsPatient = new BLL.CBsPatient();
+    BLL.CBsLocation _objBsLocation = new BLL.CBsLocation();
+    BLL.CBsDoctor _objBsDoctor = new BLL.CBsDoctor();
+    BLL.CBsDocRegType _objBsDocRegType = new BLL.CBsDocRegType();
+    BLL.CBsRegType _objBsRegType = new BLL.CBsRegType();  //挂号类别
+    BLL.CBsRegTimeSpan _objBsRegTimeSpan = new BLL.CBsRegTimeSpan();//排班类型
+    BLL.COuHosInfo _objOuHosInfo = new BLL.COuHosInfo();
+    BLL.CPatCardFee _objPatCardFee = new BLL.CPatCardFee(); //储值   
+    BLL.CBsDocLevel _objBsDocLevel = new BLL.CBsDocLevel(); //医生职称
+    BLL.CBsRegPatAmount _objBsRegPatAmount = new BLL.CBsRegPatAmount(); //挂号费用(诊金)
+    BLL.CBsUser _objUserInfo = new BLL.CBsUser();
+    BLL.CBKStoreLog _objBKStoreLog = new BLL.CBKStoreLog();
+
+
+    public WsOuCard()
+    {
+
+        //如果使用设计的组件，请取消注释以下行 
+        //InitializeComponent(); 
+    }
+
+    /// <summary>
+    /// 网络通讯测试
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string NetTest(string Request)
+    {
+        String columns = "Request,UserId";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+        string userId = GetXmlValue(Request, "Request", "UserId", "");
+        try
+        {
+            if (GetUserID(userId) == 0)
+                return "<Response><ResultCode>1</ResultCode><ErrorMsg>该机器尚未维护，请联系相关人员！</ErrorMsg></Response>";
+            else
+                return "<Response><ResultCode>0</ResultCode><ErrorMsg>通讯正常</ErrorMsg></Response>";
+        }
+        catch (Exception ex)
+        {
+            return string.Format("<Response><ResultCode>1</ResultCode><ErrorMsg>与HIS数据通讯失败！</ErrorMsg></Response>",ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 建卡病人身份证校验
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string IDCardCheck(string Request)
+    {
+        String columns = "Request,IDCardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string idCardNo = GetXmlValue(Request, "Request", "IDCardNo", ""); //得到传入的身份证号
+        Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByIdCardNo(idCardNo);
+        if (lstBsPatient.Count > 0)
+        {
+            Model.BsPatientInfo infoBsPatient = lstBsPatient[0];
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg >已办卡</ErrorMsg ><PatientId>{0}</PatientId>", infoBsPatient.ID);
+        }
+        else
+        {
+            Response = "<ResultCode>0</ResultCode><Status>可办卡</Status>";
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 获取服务器时间获取服务器时间
+    /// </summary>
+    /// <returns>DateTime</returns>
+    [WebMethod]
+    public DateTime GetServiceTime()
+    {
+        return BLL.Common.DateTimeHandler.GetServerDateTime();
+    }
+
+    /// <summary>
+    /// 卡校验
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string CardNoCheck(string Request)
+    {
+        String columns = "Request,CardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", ""); //得到传入的卡号
+        Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo);
+        if (lstBsPatient.Count > 0)
+        {
+            Model.BsPatientInfo infoBsPatient = lstBsPatient[0];
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg >卡号已存在</ErrorMsg ><PatientId>{0}</PatientId>", infoBsPatient.ID);
+        }
+        else
+        {
+            Response = "<ResultCode>0</ResultCode><Status>该卡号可以使用</Status>";
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 查询病人卡信息
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string GetPatInfo(string Request)
+    {
+        String columns = "Request,CardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", "");
+        try
+        {
+            Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo); //卡号查询
+            if (lstBsPatient.Count > 0)
+            {
+                Model.ModelList<Model.PatCardFeeInfo> lstPatCardFee = _objPatCardFee.PatCardFee_SelectByPatId(lstBsPatient[0].ID);
+                double Amount = 0;
+                if (lstPatCardFee.Count > 0)
+                    Amount = lstPatCardFee[0].Amount;
+                Model.BsPatientInfo infoBsPatient = lstBsPatient[0];
+                Response = string.Format("<CardNo>{0}</CardNo><CardStatus>N</CardStatus>" +
+                    "<AccdNo>{1}</AccdNo><AccdStatus>N</AccdStatus><AccBalance>{2}</AccBalance>" +
+                    "<PatName>{3}</PatName><IDCard>{4}</IDCard><ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg>",
+                    infoBsPatient.CardNo, BLL.Common.Utils.GetSystemSetting("HospitalBankAccount"), Amount, infoBsPatient.Name, infoBsPatient.IdCardNo);
+            }
+            else
+            {
+                Response = "<ResultCode>1</ResultCode><ErrorMsg>卡信息查询失败，请联系系统管理员</ErrorMsg>";
+            }
+        }
+        catch (Exception ex)
+        {
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>卡信息查询失败，请联系系统管理员：{0}</ErrorMsg>", ex.Message);
+            //throw ex;
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 激活健康卡
+    /// </summary>
+    /// <returns></returns>
+      [WebMethod]
+    public string CreateJKCard(string Request)
+    {
+        //string oldCardNo = GetXmlValue(Request, "Request", "OldCardNo", ""); //旧卡号
+        string CardNo = GetXmlValue(Request, "Request", "CardNo", ""); //新卡号
+        string IdCardNo = GetXmlValue(Request, "Request", "IDCardNo", ""); //身份证号
+        int operid = GetUserID(GetXmlValue(Request, "Request", "UserId", "")); //发卡机 userID
+        string Response = string.Empty;
+        try
+        {
+            Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByIdCardNo(IdCardNo); //卡号查询
+            lstBsPatient.Sort("ID");
+            lstBsPatient.Reverse();
+            if (lstBsPatient.Count > 0)
+            {
+                DAL.SqlUtil db = new DAL.SqlUtil();
+                db.Transaction = null;
+
+                db.AddParameter("@CardNo", CardNo);
+                db.AddParameter("@PatId", lstBsPatient[0].ID);
+                db.ExecuteNonQuery("[dbo].[uspUpdatePatCardNo]");
+                BLL.Tracer<Model.absModel>.AddCustTrace("Update", string.Format("[{0}]操作员[{3}]在自助机上将卡号[{1}]修改成[{2}]", operid, lstBsPatient[0].CardNo, CardNo, BLL.Common.DateTimeHandler.GetServerDateTime()), "病人卡号修改");
+                Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>激活健康卡成功</ErrorMsg>");
+            }
+        }
+        catch (global::System.Exception ex)
+        {           
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>激活健康卡失败,错误信息{0}</ErrorMsg>", ex.Message);
+           
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+        
+    }
+    /// <summary>
+    /// 为患者进行建卡/换卡
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string CreateCardPatInfo(string Request)
+    {
+        string Response = string.Empty;
+        Model.BsPatientInfo infoBsPatient = new Model.BsPatientInfo();
+        DAL.SqlUtil db = new DAL.SqlUtil();
+        System.Data.Common.DbTransaction trn = db.GetSqlTransaction();
+        try
+        {
+            infoBsPatient.CardNo = GetXmlValue(Request, "Request", "CardNo", ""); //卡号
+            infoBsPatient.Name = GetXmlValue(Request, "Request", "PatientName", ""); //姓名
+            infoBsPatient.Sex = GetXmlValue(Request, "Request", "Sex", "") == "男" ? "M" : GetXmlValue(Request, "Request", "Sex", "") == "女" ? "F" : "O";
+            infoBsPatient.BirthDate = Convert.ToDateTime(GetXmlValue(Request, "Request", "Birthday", "")); //出生日期
+            infoBsPatient.CertificateId = 1;
+            infoBsPatient.IdCardNo = GetXmlValue(Request, "Request", "IDCardNo", ""); //身份证号
+            infoBsPatient.AccountNo = GetXmlValue(Request, "Request", "Amt", ""); //办卡压金
+            infoBsPatient.AddressHome = GetXmlValue(Request, "Request", "Address", ""); //家庭住址
+            infoBsPatient.Mobile = infoBsPatient.Phone = GetXmlValue(Request, "Request", "Tel", "");//电话
+            //infoBsPatient.Mobile = GetXmlValue(Request, "Request", "Mobile", ""); //手机号码
+            infoBsPatient.PatTypeId = 116;//自费病人
+            Model.BsNationInfo infoBsNation = GetNation(GetXmlValue(Request, "Request", "Nation", ""));//民族信息
+            if (infoBsNation != null) infoBsPatient.NationId = infoBsNation.ID;//民族id
+            infoBsPatient.ProvinceId = Convert.ToInt32(BLL.Common.Utils.GetSystemSetting("DefaltProvinceId")); //默认省
+            infoBsPatient.RegionId = Convert.ToInt32(BLL.Common.Utils.GetSystemSetting("DefaltRegionId"));  //默认城市
+            //infoBsPatient.AreaId = Convert.ToInt32(BLL.Common.Utils.GetSystemSetting("DefaltAreaId")); //默认区/县
+            infoBsPatient.Residence = GetXmlValue(Request, "Request", "Address", ""); //联系住址
+            infoBsPatient.OperID = GetUserID(GetXmlValue(Request, "Request", "UserId", "")); //发卡机 userID
+            infoBsPatient.IsActive = true;
+            infoBsPatient.OperTime = BLL.Common.DateTimeHandler.GetServerDateTime();// Convert.ToDateTime(GetXmlValue(Request, "Request", "ActDateTime", "")); //录入时间  精确到 时分秒
+            //infoBsPatient.Native = GetXmlValue(Request, "Request", "Address", "").Substring(0,6);  //籍贯
+            infoBsPatient.Password = Utilities.Security.MD5_Encrypt(GetXmlValue(Request, "Request", "Pwd", ""));
+            //BLL.CBsPatient objBsPatient = new BLL.CBsPatient();
+
+            int PatId = _objBsPatient.Create(infoBsPatient, trn);
+
+            Model.PatCardFeeInfo infoPatCardFee = new Model.PatCardFeeInfo();
+            infoPatCardFee.PatId = PatId;
+            infoPatCardFee.OperTime = BLL.Common.DateTimeHandler.GetServerDateTime();
+            infoPatCardFee.OperId = GetUserID(GetXmlValue(Request, "Request", "UserId", "")); //发卡机 userID
+            infoPatCardFee.PayWayId = Convert.ToInt32(BLL.Common.Utils.GetSystemSetting("PatCardFeePayWayId"));  //支付方式 （现金）infoPatCardFee.PayWayId = 9;
+            infoPatCardFee.Amount = Convert.ToDouble(GetXmlValue(Request, "Request", "Amt", "")); //办卡压金
+           // infoPatCardFee.Memo = "预交金";
+           // infoPatCardFee.F4 = Utilities.Security.MD5_Encrypt(GetXmlValue(Request, "Request", "Pwd", ""));
+            int patCardId =  _objPatCardFee.Create(infoPatCardFee, trn);
+            trn.Commit();
+
+
+            //trn = db.GetSqlTransaction();
+            //if (infoPatCardFee.Amount > 0)
+            //    BLL.InsertAccount.UpPatCardFee(PatId, 0, "建卡扣押金", infoPatCardFee.OperId, GetXmlValue(Request, "Request", "FlowNo", ""), -1, trn);
+
+            //trn.Commit();//提交事物
+            Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>建卡成功</ErrorMsg><SerID>{0}</SerID>", infoBsPatient.CardNo);
+
+        }
+        catch (global::System.Exception ex)
+        {
+            trn.Rollback();
+            trn.Dispose();
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>建卡失败,错误信息{0}</ErrorMsg>", ex);
+            //throw ex;
+        }
+
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+   
+    /// <summary>
+    /// 卡密码修改
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string ModifyPwd(string Request)
+    {
+        String columns = "Request,CardNo,OldPassword,NewPassword";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", ""); //得到传入的卡号
+        Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo);
+       // Model.ModelList<Model.PatCardFeeInfo> lstPatCardFee = _objPatCardFee.PatCardFee_SelectByPatId(lstBsPatient[0].ID);
+        string oldPwd = GetXmlValue(Request, "Request", "OldPassword", "");
+        string newPwd = GetXmlValue(Request, "Request", "NewPassword", "");
+        string strPwd = Utilities.Security.MD5_Encrypt(newPwd);
+        lstBsPatient[0].Password = strPwd;
+        if (lstBsPatient.Count > 0)
+        {
+           // _objPatCardFee.Modify(lstPatCardFee[0], null);
+            DAL.SqlUtil db = new DAL.SqlUtil();
+            db.Transaction = null;
+
+            db.AddParameter("@PatId", lstBsPatient[0].ID);
+            db.AddParameter("@Password", lstBsPatient[0].Password); 
+            int retValue = db.ExecuteNonQuery("[dbo].[uspUpdatePatPassWord]");
+
+            Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>");
+        }
+        else
+        {
+            Response = "<ResultCode>1</ResultCode><ErrorMsg></ErrorMsg>";
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 卡账户密码校验
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string CheckAccPwd(string Request)
+    {
+        String columns = "Request,CardNo,Password";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", ""); //得到传入的卡号
+        Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo);
+        string strPwd = lstBsPatient[0].Password;
+        if (strPwd == Utilities.Security.MD5_Encrypt(GetXmlValue(Request, "Request", "Password", "")))
+        {
+            Response = string.Format("<ResultCode >0</ResultCode>");
+        }
+        else
+        {
+            Response = "<ResultCode >1</ResultCode>";
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 银行卡绑定
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string CardBound(string Request)
+    {
+        String columns = "Request,CardNo,BankNo,UserId";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", "");
+        string bankNo = GetXmlValue(Request, "Request", "BankNo", "");
+        int operid = GetUserID(GetXmlValue(Request, "Request", "UserId", "")); //发卡机 userID
+        try
+        {
+            Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo); //卡号查询
+            if (lstBsPatient.Count > 0)
+            {
+                Model.ModelList<Model.PatCardFeeInfo> lstPatCardFee = _objPatCardFee.PatCardFee_SelectByPatId(lstBsPatient[0].ID);
+                string hisBankNo = string.Empty;
+                if (lstPatCardFee.Count > 0)
+                {
+                    hisBankNo = lstPatCardFee[0].F1;
+                    if (hisBankNo.Trim() != string.Empty)
+                        Response = "<ResultCode>1</ResultCode><ErrorMsg>诊疗卡已经绑定了一张银行卡</ErrorMsg>";
+                    else
+                    {
+                        lstPatCardFee[0].F1 = bankNo;
+                        _objPatCardFee.Modify(lstPatCardFee[0], null);
+                        Response = "<ResultCode>0</ResultCode>";
+                    }
+                }
+                else
+                {
+                    Model.PatCardFeeInfo  infoPatCardFee = new Model.PatCardFeeInfo();
+                    infoPatCardFee.PatId = lstBsPatient[0].ID;
+                    infoPatCardFee.Amount = 0;
+                    infoPatCardFee.OperTime = BLL.Common.DateTimeHandler.GetServerDateTime();
+                    infoPatCardFee.OperId = operid;
+                    infoPatCardFee.F1 = bankNo;
+                    infoPatCardFee.ID = _objPatCardFee.Create(infoPatCardFee,null);
+                }
+            }
+            else
+            {
+                Response = "<ResultCode>1</ResultCode><ErrorMsg>诊疗卡绑定失败，该诊疗卡尚未激活存储卡功能,请联系系统管理员</ErrorMsg>";
+            }
+        }
+        catch (Exception ex)
+        {
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>诊疗卡绑定失败，请联系系统管理员：{0}</ErrorMsg>", ex.Message);
+            //throw ex;
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 银行卡取消绑定
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string RemoveCardBound(string Request)
+    {
+        String columns = "Request,CardNo,BankNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", "");
+        string bankNo = GetXmlValue(Request, "Request", "BankNo", "");
+        try
+        {
+            Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo); //卡号查询
+            if (lstBsPatient.Count > 0)
+            {
+                Model.ModelList<Model.PatCardFeeInfo> lstPatCardFee = _objPatCardFee.PatCardFee_SelectByPatId(lstBsPatient[0].ID);
+                string hisBankNo = string.Empty;
+                if (lstPatCardFee.Count > 0)
+                {
+                    hisBankNo = lstPatCardFee[0].F1;
+                    if (hisBankNo.Trim() == string.Empty)
+                        Response = "<ResultCode>1</ResultCode><ErrorMsg>未绑定银行卡</ErrorMsg>";
+                    else if (hisBankNo != bankNo)
+                        Response = "<ResultCode>1</ResultCode><ErrorMsg>银行卡号不一致，不允许解除绑定</ErrorMsg>";
+                    else
+                    {
+                        lstPatCardFee[0].F1 = string.Empty;
+                        _objPatCardFee.Modify(lstPatCardFee[0], null);
+                        Response = "<ResultCode>0</ResultCode>";
+                    }
+                }
+            }
+            else
+            {
+                Response = "<ResultCode>1</ResultCode><ErrorMsg>诊疗卡取消绑定失败，该诊疗卡尚未激活存储卡功能,请联系系统管理员</ErrorMsg>";
+            }
+        }
+        catch (Exception ex)
+        {
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>诊疗卡取消绑定失败，请联系系统管理员：{0}</ErrorMsg>", ex.Message);
+            //throw ex;
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 卡预交金退款&退款冲正SubDeposit
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string AddDeposit(string Request)
+    {
+        String columns = "Request,CardNo,BankNo,TranNo,OldTranNo,Amt,UserId";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", "");
+        string bkRegNo = GetXmlValue(Request, "Request", "TranNo", "");
+        string oldTranNo = GetXmlValue(Request, "Request", "OldTranNo", "");
+        double amount = Convert.ToDouble(GetXmlValue(Request, "Request", "Amt", ""));
+        int userId = GetUserID(GetXmlValue(Request, "Request", "UserId", ""));
+        string payType = GetXmlValue(Request, "Request", "PayType", ""); //充值类型 CA 现金  DB 银行
+        string bankNo = GetXmlValue(Request, "Request", "BankNo", "");//银行 卡
+        string mome = string.Format("{0}", bankNo);
+
+        DAL.SqlUtil db = new DAL.SqlUtil();
+        System.Data.Common.DbTransaction trn = db.GetSqlTransaction();
+        try
+        {
+            Model.BsPatientInfo infoBsPatient = new Model.BsPatientInfo();
+            infoBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo)[0];
+            Model.ModelList<Model.PatCardFeeInfo> lstPatCardFee = _objPatCardFee.PatCardFee_SelectByPatId(infoBsPatient.ID);
+            string hisBankNo = string.Empty;
+            //if (lstPatCardFee.Count > 0)
+            //{
+            if (payType.Contains("DB"))//银行业务
+            {
+                if (amount > 0 && oldTranNo.Trim() == string.Empty)//普通银行充值
+                {
+                    mome += "充值";
+                    BLL.InsertAccount.UpPatCardFee(infoBsPatient.ID, 1, mome, userId, bkRegNo, amount, trn);
+                    trn.Commit();
+                    Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>充值成功</ErrorMsg><SerNo>{0}</SerNo>", bkRegNo);
+                }
+                else
+                {
+                    //验证是否绑定当前银行卡
+                    hisBankNo = lstPatCardFee[0].F1;
+                    if (hisBankNo.Trim() == string.Empty)
+                        Response = "<ResultCode>1</ResultCode><ErrorMsg>还未绑定中行卡</ErrorMsg>";
+                    else if (hisBankNo != bankNo)
+                        Response = "<ResultCode>1</ResultCode><ErrorMsg>非绑定银行卡，不允许退款</ErrorMsg>";
+                    else//退款到银行、上次交易失败冲正
+                    {
+                        if (amount < 0)
+                        {
+                            if (lstPatCardFee[0].Amount < Math.Abs(amount))
+                            {
+                                Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>退款失败,原因:余额不足！</ErrorMsg>");
+                            }
+                            else
+                            {
+                                mome += "退款";
+                                BLL.InsertAccount.UpPatCardFee(infoBsPatient.ID, 2, mome, userId, bkRegNo, amount, trn);
+                                trn.Commit();
+                                Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>退款成功</ErrorMsg><SerNo>{0}</SerNo>", bkRegNo);
+                            }
+                        }
+                        else
+                        {
+                            Model.ModelList<Model.BKStoreLogInfo> lst = _objBKStoreLog.GetDynamic(string.Format(" BKRegNo='{0}' ", oldTranNo), null);
+                            if (lst.Count > 0)
+                            {
+                                if (lst[0].HappenMoney == -Math.Abs(amount))
+                                {
+                                    mome += "冲正";
+                                    BLL.InsertAccount.UpPatCardFee(infoBsPatient.ID, 1, mome, userId, bkRegNo, amount, trn);
+                                    trn.Commit();
+                                    Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>冲正成功</ErrorMsg><SerNo>{0}</SerNo>", bkRegNo);
+                                }
+                                else Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>冲正失败，上次退款金额({0})与本次金额不一致，请联系系统管理员</ErrorMsg>", lst[0].HappenMoney);
+                            }
+                            else
+                                Response = "<ResultCode>1</ResultCode><ErrorMsg>冲正失败，上次退款提交记录不存在，请联系系统管理员</ErrorMsg>";
+                        }
+                    }
+                }
+            }
+            else//现金业务
+            {
+                BLL.InsertAccount.UpPatCardFee(infoBsPatient.ID, 1, "现金充值", userId, bkRegNo, amount, trn);
+                trn.Commit();
+                Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>充值成功</ErrorMsg><SerNo>{0}</SerNo>", bkRegNo);
+            }
+            //}
+            //else
+            //{
+            //    Response = "<ResultCode>1</ResultCode><ErrorMsg>该诊疗卡尚未激活存储卡功能，请联系系统管理员</ErrorMsg>";
+            //}
+        }
+        catch (Exception ex)
+        {
+            trn.Rollback();
+            trn.Dispose();
+            if (ex.Message.Contains("重复"))
+                Response = string.Format("<ResultCode>2</ResultCode><ErrorMsg>充值失败,原因:流水号重复！</ErrorMsg><SerNo>{0}</SerNo>", bkRegNo);
+            else if (ex.Message.Contains("超时"))
+                Response = string.Format("<ResultCode>3</ResultCode><ErrorMsg>充值失败,原因:数据正在等待处理！超时!</ErrorMsg>");
+            else
+                Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>充值失败,原因:{0}</ErrorMsg>", ex.Message);
+            //throw ex;
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 病人卡预交金充值
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string BFAddDeposit(string Request)
+    {
+        String columns = "Request,CardNo,FlowNo,Amt,UserId";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", "");
+        string bkRegNo = GetXmlValue(Request, "Request", "FlowNo", "");
+        double amount = Convert.ToDouble(GetXmlValue(Request, "Request", "Amt", ""));
+        int userId = GetUserID(GetXmlValue(Request, "Request", "UserId", ""));
+        string payType = GetXmlValue(Request, "Request", "PayType", ""); //充值类型 CA 现金  DB 银行
+        string mome = string.Format("{0}充值", GetXmlValue(Request, "Request", "BankNo", ""));  //银行 卡 充值
+
+        DAL.SqlUtil db = new DAL.SqlUtil();
+        System.Data.Common.DbTransaction trn = db.GetSqlTransaction();
+        try
+        {
+            Model.BsPatientInfo infoBsPatient = new Model.BsPatientInfo();
+            infoBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo)[0];
+            int patCardId = 0;
+
+            if (payType.Contains("DB"))
+            {
+                patCardId = BLL.InsertAccount.UpPatCardFee(infoBsPatient.ID, 1, mome, userId, bkRegNo, amount, trn);
+            }
+            else
+            {
+                patCardId = BLL.InsertAccount.UpPatCardFee(infoBsPatient.ID, 1, "现金充值", userId, bkRegNo, amount, trn); 
+            }
+
+            trn.Commit();
+            Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>充值成功</ErrorMsg><SerID>{0}</SerID>", patCardId);
+        }
+        catch (Exception ex)
+        {
+            trn.Rollback();
+            trn.Dispose();
+            if (ex.Message.Contains("重复"))
+                Response = string.Format("<ResultCode>2</ResultCode><ErrorMsg>充值失败,原因:流水号重复！</ErrorMsg>");
+            else if (ex.Message.Contains("超时"))
+                Response = string.Format("<ResultCode>3</ResultCode><ErrorMsg>充值失败,原因:数据正在等待处理！超时!</ErrorMsg>");
+            else
+                Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>充值失败,原因:{0}</ErrorMsg>", ex.Message);
+            //throw ex;
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 查询能挂的科室
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string DOCKSList(string Request)
+    {
+        string Response = string.Empty;
+        //string CardNo = GetXmlValue(Request, "Request", "DOCKSList", "CardNo");
+        //Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(CardNo); //卡号查询
+        //if (lstBsPatient.Count > 0)
+        //{
+        Model.ModelList<Model.BsLocationInfo> lstBsLocation = new Model.ModelList<Model.BsLocationInfo>();
+        //BLL.CBsLocation objBsLocation = new BLL.CBsLocation();
+        string where = string.Format(" IsActive=1  and exists (select 1 from BsDocRegType (NOLOCK) where WeekDay = {0}   and LocationId = Bslocation.Id and BsDocRegType.TimeSpanId >={1} ) ", GetWeek(), GetTimeSpan());
+
+        lstBsLocation = _objBsLocation.GetDynamic(where, "Code");
+
+        foreach (Model.BsLocationInfo infoBsLocation in lstBsLocation)
+        {
+            Response += string.Format("<Item><DeptId>{0}</DeptId><ParDeptId>{1}</ParDeptId><DeptName>{2}</DeptName></Item>", infoBsLocation.ID, 0, infoBsLocation.Name);
+        }
+        Response = string.Format("<DOCKSList>{0}</DOCKSList><ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>", Response);
+        //}
+        //else
+        //{
+        //    Response = "<ResultCode>1</ResultCode><ErrorMsg>此卡无信息</ErrorMsg>";
+        //}
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 查询能挂的医生号 别
+    /// </summary>
+    /// <param name="Request"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string DOCHBList(string Request)
+    {
+        String columns = "Request,DOCHBList,DeptId,Day,CardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        int locationId = Convert.ToInt32(GetXmlValue(Request, "Request", "DOCHBList", "DeptId")); //科室id
+        //int OperID = Convert.ToInt32(GetXmlValue(Request, "Request", "DOCHBList", "UserId")); //发卡机 userID
+        string CardNo = GetXmlValue(Request, "Request", "DOCHBList", "CardNo"); 
+
+        Model.BsLocationInfo infoBsLocation = _objBsLocation.GetByID(locationId); //取得科室信息
+
+        bool isVIP = Utilities.Information.IsNumeric(CardNo) && CardNo.Length <= 8
+              && Convert.ToInt32(CardNo) >= Convert.ToInt32(BLL.Common.Utils.GetSystemSetting("VIPCardKeyNoFrom"))
+              && Convert.ToInt32(CardNo) <= Convert.ToInt32(BLL.Common.Utils.GetSystemSetting("VIPCardKeyNoTo"));
+
+        //茂名特有的 VIP 因为VIP卡号不足，另外添加了一个段 
+        if (!isVIP && Utilities.Information.IsNumeric(CardNo) && CardNo.Length<10
+            && Convert.ToInt32(CardNo) >= Convert.ToInt32(8000000)
+            && Convert.ToInt32(CardNo) <= Convert.ToInt32(8009999)
+            )
+        {
+            isVIP = true;
+        }
+       
+
+        Model.ModelList<Model.BsDocRegTypeInfo> lstBsDocRegType = _objBsDocRegType.GetDynamic(string.Format("LocationId = {0} and WeekDay = {1} and TimeSpanId >={2}", locationId, GetWeek(), GetTimeSpan()), "");
+        if (lstBsDocRegType.Count > 0)
+        {
+            Response = "<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><DOCHBList>";
+            foreach (Model.BsDocRegTypeInfo infoBsDocRegType in lstBsDocRegType)
+            {
+                Model.BsRegTypeInfo infoBsRegType = _objBsRegType.GetByID(infoBsDocRegType.RegTypeId);  //挂号类别
+                Model.BsRegTimeSpanInfo infoBsRegTimeSpan = _objBsRegTimeSpan.GetByID(infoBsDocRegType.TimeSpanId); //排班类型
+                Model.BsDoctorInfo infoBsDoctor = _objBsDoctor.GetByID(infoBsDocRegType.DoctorId); //医生
+                Model.BsDocLevelInfo infoBsDocLevel = _objBsDocLevel.GetByID(infoBsDoctor.DocLevId); //医生职称
+                Model.BsRegPatAmountInfo infoBsRegPatAmount = _objBsRegPatAmount.GetDynamic(string.Format("regtypeid = {0} and pattypeid = 116", infoBsRegType.ID), "")[0];//挂号费
+                double RegFeeAmout = infoBsRegPatAmount.RegFee + infoBsRegPatAmount.DiagnoFee;
+                Response += string.Format("<Item><DepId>{0}</DepId><DepDesc>{1}</DepDesc><RegType>{2}</RegType><HBTime>{3}</HBTime><RowId>{4}</RowId><SumFee>{5}</SumFee><SessionType>{6}</SessionType><MarkDesc>{7}</MarkDesc><DocRegID>{8}</DocRegID><DocTime>{9}</DocTime></Item>",
+                    infoBsDocRegType.LocationId, infoBsLocation.Name, infoBsRegType.Name, infoBsRegTimeSpan.Name, infoBsDocRegType.DoctorId, isVIP && RegFeeAmout < 10 ? 0 : RegFeeAmout, infoBsDocLevel.Name, infoBsDoctor.Name, infoBsDocRegType.ID, infoBsRegTimeSpan.TimeBegin + "-" + infoBsRegTimeSpan.TimeEnd);
+            }
+            Response += "</DOCHBList>";
+        }
+        else
+        {
+            Response = "<ResultCode>1</ResultCode><ErrorMsg>请与系统管理员联系排班周没安排医生</ErrorMsg>";
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+   
+   
+
+    /// <summary>
+    /// 挂号
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string OPRegist(string Request)
+    {
+        String columns = "Request,OPRegist,UserId,SumFee,RowId,CardNo,Day,FlowNo,DocRegID";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        int hospId = 0;
+        int userId = GetUserID(GetXmlValue(Request, "Request", "OPRegist", "UserId"));
+        int DocRegID = Convert.ToInt32(GetXmlValue(Request, "Request", "OPRegist", "DocRegID"));
+        double amount = Convert.ToDouble(GetXmlValue(Request, "Request", "OPRegist", "SumFee")); //挂号费
+        string bkRegNo = GetXmlValue(Request, "Request", "OPRegist", "FlowNo");
+        Model.BsDoctorInfo infoBsDoctor = _objBsDoctor.GetByID(Convert.ToInt32(GetXmlValue(Request, "Request", "OPRegist", "RowId"))); //查询医生表
+
+        DAL.SqlUtil db = new DAL.SqlUtil();
+        System.Data.Common.DbTransaction trn = db.GetSqlTransaction();
+        try
+        {
+            Model.ModelList<Model.BsPatientInfo> lstBsPatient = new Model.ModelList<Model.BsPatientInfo>();
+            Model.BsPatientInfo infoBsPatient = _objBsPatient.BsPatient_SelectByCardNo(GetXmlValue(Request, "Request", "OPRegist", "CardNo"))[0]; // 查询病人类别表            
+
+            //Model.ModelList<Model.BsDocRegTypeInfo> lstBsDocRegType = _objBsDocRegType.BsDocRegType_SelectByDoctorId(Convert.ToInt32(GetXmlValue(Request, "Request", "OPRegist", "RowId")));
+            string strWhere = string.Format("DoctorId = {0} and WeekDay = {1}", Convert.ToInt32(GetXmlValue(Request, "Request", "OPRegist", "RowId")), GetWeek());
+            Model.ModelList<Model.BsDocRegTypeInfo> lstBsDocRegType = _objBsDocRegType.GetDynamic(strWhere, "Id");
+
+
+            Model.OuHosInfoInfo infoOuHosInfo = new Model.OuHosInfoInfo();
+
+            if (amount == 0)
+                infoOuHosInfo.IsFreeReg = infoOuHosInfo.IsFreeDiag = infoOuHosInfo.IsPriority = true; 
+
+            infoOuHosInfo.MzRegNo = BLL.Common.SequenceNumHandler.GetSequenceNum(Model.EnumSequenceNumType.MzReg).ToString(); //GetXmlValue(Request, "Request", "OPRegist", "CardNo"); //门诊流水号
+            infoOuHosInfo.RegTime = Convert.ToDateTime(GetXmlValue(Request, "Request", "OPRegist", "Day"));  //挂号时间
+            infoOuHosInfo.PatId = infoBsPatient.ID;  //病人id
+            infoOuHosInfo.CardNo = GetXmlValue(Request, "Request", "OPRegist", "CardNo"); //卡号
+            infoOuHosInfo.Name = infoBsPatient.Name;
+            infoOuHosInfo.Sex = infoBsPatient.Sex; 
+            infoOuHosInfo.PatTypeId = 116;  //病人类别 自费
+            infoOuHosInfo.RegTypeId = infoBsDoctor.RegTypeId; //挂号类别
+            infoOuHosInfo.DoctorId = Convert.ToInt32(GetXmlValue(Request, "Request", "OPRegist", "RowId"));//bsdoctorid 医生id        
+            infoOuHosInfo.OperTime = BLL.Common.DateTimeHandler.GetServerDateTime();// Convert.ToDateTime(GetXmlValue(Request, "Request", "OPRegist", "Day"));  //挂号时发生的时间
+            infoOuHosInfo.OperId = userId; //操作员id  自助挂号 的 userid
+            infoOuHosInfo.RegDept = lstBsDocRegType[0].LocationId; //挂号科室id  
+           // infoOuHosInfo.DiagnDept = lstBsDocRegType[0].LocationId;//接诊科室
+            if (amount > 1)
+            {               
+                infoOuHosInfo.RegFee = 1;
+                infoOuHosInfo.DiagnoFee = amount-1;
+            }
+            
+            infoOuHosInfo.F1 = "1";
+            infoOuHosInfo.IsCancel = false;
+            infoOuHosInfo.PaySel = 1;
+            hospId = _objOuHosInfo.Create(infoOuHosInfo, trn);
+
+            Model.OulInvoiceRegInfo infoOuInvoiceRe = infoOuHosInfo.ConvertTo<Model.OulInvoiceRegInfo>();
+            infoOuInvoiceRe.MzRegId = hospId;
+            infoOuInvoiceRe.InvoTime = BLL.Common.DateTimeHandler.GetServerDateTime();
+            infoOuInvoiceRe.InvoNo = infoOuHosInfo.MzRegNo;
+
+            infoOuInvoiceRe.InvoLastId = 0;
+            BLL.COulInvoiceReg _objOuInvoiceReg = new BLL.COulInvoiceReg();
+            infoOuInvoiceRe.ID = _objOuInvoiceReg.Create(infoOuInvoiceRe, trn);
+
+            BLL.InsertAccount.UpPatCardFee(infoBsPatient.ID, 2, "挂号扣减", userId, bkRegNo, amount, trn);
+
+
+            trn.Commit();
+        }
+        catch (global::System.Exception ex)
+        {
+            trn.Rollback();
+            trn.Dispose();
+            Response = String.Format("<ResultCode>1</ResultCode><ErrorMsg>挂号失败，{0}</ErrorMsg>", ex.Message.ToString());
+            return Response;
+            //throw ex;
+        }
+        if (hospId > 0)
+        {
+            Model.OuHosInfoInfo infoOuhosinfo = _objOuHosInfo.GetByID(hospId);
+            Model.BsLocationInfo infoBsLocation = _objBsLocation.GetByID(infoOuhosinfo.RegDept);
+            Model.BsDocLevelInfo infoBsDocLevel = _objBsDocLevel.GetByID(infoBsDoctor.DocLevId); //医生职称
+            Model.BsDocRegTypeInfo infoDocRegType = _objBsDocRegType.GetByID(DocRegID);
+            Model.BsRegTimeSpanInfo infoBsRegTimeSpan = _objBsRegTimeSpan.GetByID(infoDocRegType.TimeSpanId);
+            string XNo = string.Format("候诊排号：{0}", BLL.absBusiness<Model.absModel>.ExecuteScalar("uspGetOuDoctorHasDiagnoseNum", infoOuhosinfo.DoctorId.ToString(), null));
+
+            Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg>挂号成功</ErrorMsg><SerID></SerID>" +
+                "<PrintData> <CardNo>{0}</CardNo><PatName>{1}</PatName>" +
+                "<DepDesc>{2}</DepDesc><RMB>{3}</RMB><UserId>{4}</UserId><SessionType>{5}</SessionType><LocInfo>{6}</LocInfo><DocDesc>{7}</DocDesc><DocTime>{8}</DocTime><XNo>{9}</XNo><MzRegNo>{10}</MzRegNo></PrintData>",
+                infoOuhosinfo.CardNo, infoOuhosinfo.Name, infoBsLocation.Name, amount, userId, infoBsDocLevel.Name, infoDocRegType.RoomNo, infoBsDoctor.Name, infoBsRegTimeSpan.TimeBegin + "-" + infoBsRegTimeSpan.TimeEnd, XNo, infoOuhosinfo.MzRegNo);
+        }
+
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+
+    /// <summary>
+    /// 查询缴费项目
+    /// </summary>
+    /// <returns></returns>
+    //[WebMethod]
+    //public string GetBillInfo(string Request)
+    //{
+    //    String columns = "Request,CardNo";
+    //    if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+    //    {
+    //        return GetExist(Request, columns);
+    //    }
+
+    //    string Response = string.Empty;
+    //    BLL.Finder<Model.uspOuRecipeDtlForOuInvoiceDtlQry> objbllFinder = new BLL.Finder<Model.uspOuRecipeDtlForOuInvoiceDtlQry>();
+    //    Model.OuHosInfoInfo infoOuHos=GetOuHosInfo(GetXmlValue(Request, "Request", "CardNo", ""));
+    //    objbllFinder.AddParameter("MzRegId", infoOuHos.ID);
+    //    objbllFinder.AddParameter("LocationId", infoOuHos.DiagnDept);
+    //    objbllFinder.AddParameter("PatTypeId", 116);
+    //    Model.ModelList<Model.uspOuRecipeDtlForOuInvoiceDtlQry> lstUspOuChargeDetail = objbllFinder.Find("uspOuRecipeDtlForOuInvoiceDtl");
+
+
+    //    Response = "<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><Items>";
+    //    foreach (Model.uspOuRecipeDtlForOuInvoiceDtlQry infoUspOuCargeDetail in lstUspOuChargeDetail)
+    //    {
+    //        // <Item><ItemId>101</ItemId><ItemName>体检费</ItemName><CateId>1</CateId><CateName>西药</CateName><Price>1</Price><Num>2</Num><CtLoc>神经一科</CtLoc></Item></Items></Response>
+
+    //        Response += string.Format("<Item><ItemId>{0}</ItemId><ItemName>{1}</ItemName><CateId>{2}</CateId><CateName>{3}</CateName><Price>{4}</Price><Num>{5}</Num><Amount>{6}</Amount><CtLoc>{7}</CtLoc></Item>",
+    //            infoUspOuCargeDetail.Code, infoUspOuCargeDetail.Name, infoUspOuCargeDetail.InvItemId, infoUspOuCargeDetail.InvMzItemName, infoUspOuCargeDetail.Price, infoUspOuCargeDetail.Totality, infoUspOuCargeDetail.Amount, infoUspOuCargeDetail.Memo);
+    //    }
+    //    Response += "</Items>";
+
+    //    return Response = string.Format("<Response>{0}</Response>", Response);
+    //}
+
+    /// <summary>
+    /// 查询当天挂号列表
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string GetRegistList(string Request)
+    {
+        String columns = "Request,CardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+
+        Model.ModelList<Model.OuHosInfoInfo> ouhosLst = new Model.ModelList<Model.OuHosInfoInfo>();
+        ouhosLst = _objOuHosInfo.GetDynamic(string.Format(" CardNo='{0}' and RegTime > GetDate()-1  ORDER BY RegTime DESC", GetXmlValue(Request, "Request", "CardNo", "")), null);
+        
+
+        if (ouhosLst.Count == 0) return "<Response><ResultCode>1</ResultCode><ErrorMsg>没有挂号记录！</ErrorMsg></Response>";
+
+        Response = "<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>";
+        foreach (Model.OuHosInfoInfo ouhosinfo in ouhosLst)
+        {          
+              Model.BsLocationInfo infoBsLocation = _objBsLocation.GetByID(ouhosinfo.RegDept);
+              Model.BsDoctorInfo infoBsDoctor = _objBsDoctor.GetByID(ouhosinfo.DoctorId); //医生
+              Response += string.Format("<RbInfo><RegisterDate>{0}</RegisterDate><VisitNO>{1}</VisitNO><VisitID>{2}</VisitID><IsDiagnoses>{3}</IsDiagnoses><PatName>{4}</PatName><DepName>{5}</DepName><DoctName>{6}</DoctName></RbInfo>"
+                  , ouhosinfo.RegTime.ToString(), ouhosinfo.MzRegNo, ouhosinfo.ID, ouhosinfo.DiagnDept == 0 ? "N" : "Y", ouhosinfo.Name, infoBsLocation.Name, infoBsDoctor.Name);
+        }
+
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 查询缴费项目
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string GetBillInfo(string Request)
+    {
+        String columns = "Request,CardNo,VisitID";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+
+        Model.OuHosInfoInfo infoOuHos;
+        if (GetXmlValue(Request, "Request", "VisitID", "").Trim() != string.Empty)
+            infoOuHos = _objOuHosInfo.GetByID(Convert.ToInt32(GetXmlValue(Request, "Request", "VisitID", "")));
+        else
+            infoOuHos = GetOuHosInfo(GetXmlValue(Request, "Request", "CardNo", ""));
+
+        if (infoOuHos == null) return "<Response><ResultCode>1</ResultCode><ErrorMsg>当天没有挂号记录！</ErrorMsg></Response>";
+
+        XYHIS.FrmOuCharge.IsAutoCharge = true;
+        XYHIS.FrmOuCharge oucharge = new XYHIS.FrmOuCharge();
+        Model.ModelList<Model.uspOuInvoiceDtlQry> lstUspOuChargeDetail = oucharge.GetBillInfo(infoOuHos.ID);
+
+
+        Response = string.Format("<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><VisitID>{0}</VisitID><Items>", infoOuHos.ID);
+        foreach (Model.uspOuInvoiceDtlQry infoUspOuCargeDetail in lstUspOuChargeDetail)
+        {
+            // <Item><ItemId>101</ItemId><ItemName>体检费</ItemName><CateId>1</CateId><CateName>西药</CateName><Price>1</Price><Num>2</Num><CtLoc>神经一科</CtLoc></Item></Items></Response>
+
+            Response += string.Format("<Item><ItemId>{0}</ItemId><ItemName>{1}</ItemName><CateId>{2}</CateId><CateName>{3}</CateName><Price>{4}</Price><Num>{5}</Num><Amount>{6}</Amount><CtLoc>{7}</CtLoc></Item>",
+                infoUspOuCargeDetail.Code, infoUspOuCargeDetail.Name, infoUspOuCargeDetail.InvItemId, infoUspOuCargeDetail.InvMzItemName, infoUspOuCargeDetail.Price, infoUspOuCargeDetail.Totality, infoUspOuCargeDetail.Amount, infoUspOuCargeDetail.Memo);
+        }
+        Response += "</Items>";
+
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+
+    /// <summary>
+    /// 执行缴费
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string AutoOPBillCharge(string Request)
+    {
+        string Response = string.Empty;
+        string mzRegNo = GetXmlValue(Request, "Request", "CardNo", "");  //流水号 
+        int locationId = Convert.ToInt32(GetXmlValue(Request, "Request", "DeptId", "")); //科室id
+        int doctorId = Convert.ToInt32(GetXmlValue(Request, "Request", "RowId", ""));//bsdoctorid 医生id    
+        int userId = GetUserID(GetXmlValue(Request, "Request", "UserId", ""));
+       // int VisitID = GetUserID(GetXmlValue(Request, "Request", "OPRegist", "VisitID"));
+
+        Model.OuHosInfoInfo infoOuHos;
+        if (GetXmlValue(Request, "Request", "VisitID", "").Trim() != string.Empty)
+            infoOuHos = _objOuHosInfo.GetByID(Convert.ToInt32(GetXmlValue(Request, "Request", "VisitID", "")));
+        else
+            infoOuHos = GetOuHosInfo(GetXmlValue(Request, "Request", "CardNo", ""));
+        mzRegNo = infoOuHos.MzRegNo;
+
+        BLL.CBsLocation bllLocation = new BLL.CBsLocation();
+        Model.BsLocationInfo infoLoation = bllLocation.GetByID(170);
+        Model.Configuration.UserProfiles.LsInOut = infoLoation.LsInOut;
+        Model.Configuration.UserProfiles.LocationCode = infoLoation.Code;
+        Model.Configuration.UserProfiles.HospitalID = infoLoation.HospitalId;
+        Model.Configuration.UserProfiles.SpecialityID = infoLoation.SpecialityId;
+        //Model.Configuration.UserProfiles.UserID = userId;
+
+        XYHIS.FrmOuCharge.IsAutoCharge = true;
+        XYHIS.FrmOuCharge oucharge = new XYHIS.FrmOuCharge();
+
+        //Response = oucharge.AutoRegOuHosInfo("201108190001", 195, 568);
+        Response = oucharge.AutoRegOuHosInfo(mzRegNo, infoOuHos.DiagnDept, infoOuHos.DoctorId, userId);
+        if (Response.Contains("成功"))
+        {
+            BLL.Finder<Model.uspOuInvoiceDtlQry> objbllFinder = new BLL.Finder<Model.uspOuInvoiceDtlQry>();
+
+            Model.ModelList<Model.OuInvoiceInfo> lstOuInvoice = new Model.ModelList<Model.OuInvoiceInfo>();
+            BLL.COuInvoice _objOuInvoice = new BLL.COuInvoice();
+            string strIsHave = string.Format(" MzRegId ={0} and InvoTime>'{1}' and  InvoTime<'{2}' and IsCancel = 0 ", infoOuHos.ID, BLL.Common.DateTimeHandler.GetServerDateTime().Date, BLL.Common.DateTimeHandler.GetServerDateTime().AddHours(1));
+            lstOuInvoice = _objOuInvoice.GetDynamic(strIsHave,"ID");
+            lstOuInvoice.Reverse();
+
+            objbllFinder.AddParameter("InvoId", lstOuInvoice[0].ID);
+            Model.ModelList<Model.uspOuInvoiceDtlQry> lstUspOuChargeDetail = objbllFinder.Find("uspOuInvoiceDtl");
+
+            Model.ModelList<Model.uspOuInvoiceInvItemGoupSumQry> _lstUspOuInvoiceInvItemGoupSumQry = new Model.ModelList<Model.uspOuInvoiceInvItemGoupSumQry>();
+            BLL.Finder<Model.uspOuInvoiceInvItemGoupSumQry> _objUspOuInvoiceInvItemGroupSum = new BLL.Finder<Model.uspOuInvoiceInvItemGoupSumQry>();
+            _objUspOuInvoiceInvItemGroupSum.AddParameter("InvoId", lstOuInvoice[0].ID);
+            _lstUspOuInvoiceInvItemGoupSumQry = _objUspOuInvoiceInvItemGroupSum.Find("uspOuInvoiceInvItemGoupSum");
+
+            Response = string.Format("<AutoOPBillCharge><ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg><SumValue>{0}</SumValue><MzRegNo>{1}</MzRegNo>"//
+                      , (lstOuInvoice[0].Beprice + lstOuInvoice[0].AddFee).ToString(), infoOuHos.MzRegNo);//, 
+            Response += string.Format("<FPList><FP><MZH>2011022111343</MZH><DLNSH>1102211002590</DLNSH><ZJE>{0}</ZJE><YHJE>0.00</YHJE><FYCK>{1}</FYCK><FPXM>"
+                , (lstOuInvoice[0].Beprice + lstOuInvoice[0].AddFee).ToString(), oucharge.strMZInjectRoomText);
+            
+
+            foreach (Model.uspOuInvoiceInvItemGoupSumQry info in _lstUspOuInvoiceInvItemGoupSumQry)
+            {
+                Response += string.Format("<XM><XMMC>{0}</XMMC><JE>{1}</JE></XM>", info.Name, info.Amount);
+            }
+
+            Response += "</FPXM><SFXMMX>";
+            foreach (Model.uspOuInvoiceDtlQry infoUspOuCargeDetail in lstUspOuChargeDetail)
+            {
+                Response += string.Format("<SFXM><XMMC>{0}</XMMC><DW>{1}</DW><DJ>{2}</DJ><SL>{3}</SL><JE>{4}</JE></SFXM>",
+                    infoUspOuCargeDetail.Name, infoUspOuCargeDetail.UnitDiagName, infoUspOuCargeDetail.Price, infoUspOuCargeDetail.Totality,
+                    infoUspOuCargeDetail.Amount);
+            }
+            Response += "</SFXMMX></FP></FPList></AutoOPBillCharge>";
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 消费记录
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string ConsumptionRecord(string Request)
+    {
+        string columns = "Request,CardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", "");
+        try
+        {
+            Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo); //卡号查询
+            Model.ModelList<Model.PatCardFeeInfo> lstPatCardFee = _objPatCardFee.PatCardFee_SelectByPatId(lstBsPatient[0].ID);
+            Model.ModelList<Model.BKStoreLogInfo> lstBKStoreLog = new Model.ModelList<Model.BKStoreLogInfo>();
+            if (lstPatCardFee.Count > 0)
+                lstBKStoreLog = _objBKStoreLog.GetDynamic(string.Format(" LsActType=2 and  PatCardid={0}", lstPatCardFee[0].ID), "HappenTime");
+            if (lstBsPatient.Count > 0 && lstBKStoreLog.Count > 0)
+            {
+                Model.BsPatientInfo infoBsPatient = lstBsPatient[0];
+                Response = "<ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg>";
+                foreach (Model.BKStoreLogInfo info in lstBKStoreLog)
+                {
+                    if (info.Memo.Contains("退款"))
+                        Response += string.Format("<Detail><RecordType>{0}</RecordType><Money>{1}</Money><RecordDate>{2}</RecordDate><RecordDesc>{3}</RecordDesc><Remark>{4}</Remark></Detail> ",
+                               "C", -info.HappenMoney, info.HappenTime, "退款", info.Memo);
+                    else
+                        Response += string.Format("<Detail><RecordType>{0}</RecordType><Money>{1}</Money><RecordDate>{2}</RecordDate><RecordDesc>{3}</RecordDesc><Remark>{4}</Remark></Detail> ",
+                            "A", -info.HappenMoney, info.HappenTime, "消费", info.Memo);
+                }
+            }
+            else
+            {
+                Response = "<ResultCode>1</ResultCode><ErrorMsg>没有消费记录</ErrorMsg>";
+            }
+        }
+        catch (Exception ex)
+        {
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>消费记录查询失败，请联系系统管理员：{0}</ErrorMsg>", ex.Message);
+            //throw ex;
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 充值记录
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string AddBalanceRecord(string Request)
+    {
+        string columns = "Request,CardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        string cardNo = GetXmlValue(Request, "Request", "CardNo", "");
+        try
+        {
+            Model.ModelList<Model.BsPatientInfo> lstBsPatient = _objBsPatient.BsPatient_SelectByCardNo(cardNo); //卡号查询
+            Model.ModelList<Model.PatCardFeeInfo> lstPatCardFee = _objPatCardFee.PatCardFee_SelectByPatId(lstBsPatient[0].ID);
+            Model.ModelList<Model.BKStoreLogInfo> lstBKStoreLog = new Model.ModelList<Model.BKStoreLogInfo>();
+            if (lstPatCardFee.Count > 0)
+                lstBKStoreLog = _objBKStoreLog.GetDynamic(string.Format(" LsActType=1 and  PatCardid={0}", lstPatCardFee[0].ID), "HappenTime");
+            if (lstBsPatient.Count > 0 && lstBKStoreLog.Count > 0)
+            {
+                Model.BsPatientInfo infoBsPatient = lstBsPatient[0];
+                Response = "<ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg>";
+                foreach (Model.BKStoreLogInfo info in lstBKStoreLog)
+                {
+                    Response += string.Format("<Record><RecordType>{0}</RecordType><Money>{1}</Money><RecordDate>{2}</RecordDate><RecordDesc>{3}</RecordDesc><Remark>{4}</Remark><BankNo>{5}</BankNo></Record>",
+                        "1", info.HappenMoney, info.HappenTime, "充值", info.Memo, info.Memo.Contains("现金充值") ? "" : info.Memo);
+                }
+            }
+            else
+            {
+                Response = "<ResultCode>1</ResultCode><ErrorMsg>没有消费记录</ErrorMsg>";
+            }
+        }
+        catch (Exception ex)
+        {
+            Response = string.Format("<ResultCode>1</ResultCode><ErrorMsg>消费记录查询失败，请联系系统管理员：{0}</ErrorMsg>", ex.Message);
+            //throw ex;
+        }
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 获取检验列表
+    /// </summary>
+    /// <returns></returns>
+    [WebMethod]
+    public string GetLisItems(string Request)
+    {
+        String columns = "Request,StartDate,EndDate,CardNo";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+
+        string Response = string.Empty;
+        Model.ModelList<Model.uspCkLabSearchQry> _lstCkLabSearchQry;
+        BLL.Finder<Model.uspCkLabSearchQry> finder = new BLL.Finder<Model.uspCkLabSearchQry>();
+        finder.AddParameter("Time_Begin", GetXmlValue(Request, "Request", "StartDate", ""));
+        finder.AddParameter("Time_End", GetXmlValue(Request, "Request", "EndDate", ""));
+        finder.AddParameter("CardNo", GetXmlValue(Request, "Request", "CardNo", ""));
+        //finder.AddParameter("LsStatus", 5);
+        _lstCkLabSearchQry = finder.Find("uspAutoCkLabSearch");
+
+        if (_lstCkLabSearchQry.Count == 0) return "<Response><ResultCode>1</ResultCode><ErrorMsg>没有检验记录！</ErrorMsg></Response>";
+
+        Response = "<LisItemList>";
+        foreach (Model.uspCkLabSearchQry infoCkLabSearch in _lstCkLabSearchQry)
+        {
+
+            Response += string.Format("<Items><ApplyNo>{0}</ApplyNo><SendTime>{1}</SendTime><RepName>{2}</RepName><RepCate>{3}</RepCate><RepCateName>{4}</RepCateName><Status>{5}</Status><LabId>{6}</LabId><MzRegNo>{7}</MzRegNo></Items>"
+                , infoCkLabSearch.ID.ToString(), infoCkLabSearch.OperTime.ToString(), infoCkLabSearch.F1, infoCkLabSearch.TestTypeId, infoCkLabSearch.DoctorName, infoCkLabSearch.LsStatus.ToString(), infoCkLabSearch.ID, infoCkLabSearch.MzRegNo.ToString());
+        }
+        Response += "</LisItemList> <ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>";
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+    /// <summary>
+    /// 费用清单
+    /// </summary>
+    /// <param name="Request"></param>
+    /// <returns></returns>
+    [WebMethod]
+    private string PatChargeList(string Request)
+    {
+        String columns = "Request,CardNo,BeginDate,EndDate";
+        if (!String.IsNullOrEmpty(GetExist(Request, columns)))
+        {
+            return GetExist(Request, columns);
+        }
+
+        string Response = string.Empty;
+        try
+        {
+            BLL.Finder<Model.uspOuInvoiceDtlQry> objbllFinder = new BLL.Finder<Model.uspOuInvoiceDtlQry>();
+            Model.OuHosInfoInfo infoOuHos = GetOuHosInfo(GetXmlValue(Request, "Request", "CardNo", ""));
+
+            Model.ModelList<Model.OuInvoiceInfo> lstOuInvoice = new Model.ModelList<Model.OuInvoiceInfo>();
+            BLL.COuInvoice _objOuInvoice = new BLL.COuInvoice();
+            string strIsHave = string.Format(" MzRegId ={0} and InvoTime>'{1}' and  InvoTime<'{2}' and IsCancel = 0 ", infoOuHos.ID, BLL.Common.DateTimeHandler.GetServerDateTime().Date, BLL.Common.DateTimeHandler.GetServerDateTime());
+            lstOuInvoice = _objOuInvoice.GetDynamic(strIsHave, null);
+ 
+            objbllFinder.AddParameter("InvoId", lstOuInvoice[0].ID);
+            Model.ModelList<Model.uspOuInvoiceDtlQry> lstUspOuChargeDetail = objbllFinder.Find("uspOuInvoiceDtl");
+
+
+            Response = string.Format("<PatChargeList><PatName>{0}</PatName><ChargeType>{1}</ChargeType><InvoTime>{2}<InvoTime><Items>"
+                       , infoOuHos.Name, "缴费", lstUspOuChargeDetail[0].InvoTime);
+
+            foreach (Model.uspOuInvoiceDtlQry infoUspOuCargeDetail in lstUspOuChargeDetail)
+            {
+                Response += string.Format("<ItemId>{0}</ItemId><ItemName>{1}</ItemName><Price>{2}</Price><Num>{3}</Num><Amount>{4}</Amount>" +
+                    "<ItemClass>{5}</ItemClass><Units>{6}</Units>",
+                    infoUspOuCargeDetail.Code, infoUspOuCargeDetail.Name, infoUspOuCargeDetail.Price, infoUspOuCargeDetail.Totality,
+                    infoUspOuCargeDetail.Amount, infoUspOuCargeDetail.InvMzItemName, infoUspOuCargeDetail.UnitDiagName);
+            }
+            Response += "</Items></PatChargeList><ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>";
+        }
+        catch (Exception)
+        {
+            Response = "<ResultCode>1</ResultCode><ErrorMsg>查询失败请联系管理员</ErrorMsg>";
+            //throw;
+        }
+
+
+        return Response = string.Format("<Response>{0}</Response>", Response);
+    }
+
+     /// <summary>
+    /// 测试打印
+    /// </summary>
+    /// <param name="Request"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string TestPrint(string Request)
+    {
+        //XYHIS.Form1 frm = new XYHIS.Form1();
+        //frm.TestPrint();
+        return "OK";
+    }
+
+    /// <summary>
+    /// 取民族信息
+    /// </summary>
+    /// <param name="NationName"></param>
+    /// <returns></returns>
+    private Model.BsNationInfo GetNation(string nationName)
+    {
+        if (nationName == null || nationName == "") return null;
+        BLL.CBsNation objBsNation = new BLL.CBsNation();
+        Model.ModelList<Model.BsNationInfo> lstBsNation = objBsNation.BsNation_SelectByName(nationName);
+        Model.BsNationInfo infoBsNation = null;
+        if (lstBsNation.Count > 0) infoBsNation = lstBsNation[0];
+        return infoBsNation;
+    }
+
+    /// <summary>
+    /// 取星期
+    /// </summary>
+    /// <returns></returns>
+    public int GetWeek()
+    {
+        DateTime dt = BLL.Common.DateTimeHandler.GetServerDateTime();
+        switch (dt.DayOfWeek)
+        {
+            case DayOfWeek.Friday:
+                return 5;
+            case DayOfWeek.Monday:
+                return 1;
+            case DayOfWeek.Tuesday:
+                return 2;
+            case DayOfWeek.Sunday:
+                return 0;
+            case DayOfWeek.Thursday:
+                return 4;
+            case DayOfWeek.Saturday:
+                return 6;
+            case DayOfWeek.Wednesday:
+                return 3;
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns></returns>
+    private int GetTimeSpan()
+    {
+
+        BLL.CBsRegTimeSpan objBsRegTimeSpan = new BLL.CBsRegTimeSpan();
+        Model.ModelList<Model.BsRegTimeSpanInfo> lstBsRegTimeSpan = objBsRegTimeSpan.GetAllActive();
+
+        foreach (Model.BsRegTimeSpanInfo infoTimeSpan in lstBsRegTimeSpan)
+        {
+            DateTime RegTime = System.Convert.ToDateTime(BLL.Common.DateTimeHandler.GetServerDateTime().TimeOfDay.ToString());
+            if ((RegTime > Convert.ToDateTime(infoTimeSpan.TimeBegin) && RegTime < Convert.ToDateTime(infoTimeSpan.TimeEnd))
+                || (infoTimeSpan.F1 == "1" && (RegTime < Convert.ToDateTime(infoTimeSpan.TimeEnd) || RegTime > Convert.ToDateTime(infoTimeSpan.TimeBegin))))
+                return infoTimeSpan.ID;
+        }
+        return 0;
+    }
+
+ 
+
+    /// <summary>
+    /// 根据卡号获取今天挂号信息
+    /// </summary>
+    /// <param name="cardNo"></param>
+    /// <returns></returns>
+    private Model.OuHosInfoInfo GetOuHosInfo(String cardNo)
+    {
+        Model.ModelList<Model.OuHosInfoInfo> ouhosLst = new Model.ModelList<Model.OuHosInfoInfo>();
+        ouhosLst = _objOuHosInfo.GetDynamic(string.Format(" CardNo={0} and RegTime > GetDate()-1  ORDER BY RegTime DESC", cardNo), null);
+        if (ouhosLst.Count > 0)
+            return ouhosLst[0];
+        else return null;
+    }
+
+    /// <summary>
+    /// 根据机器号获取UserID
+    /// </summary>
+    /// <param name="cardNo"></param>
+    /// <returns></returns>
+    private int GetUserID(string userid)
+    {
+        Model.ModelList<Model.BsUserInfo> ouhosLst = new Model.ModelList<Model.BsUserInfo>();
+        ouhosLst = _objUserInfo.BsUser_SelectByCode(userid);
+        if (ouhosLst.Count > 0)
+            return ouhosLst[0].ID;
+        else return 0;
+    }
+
+    /// <summary>
+    /// 是否重复调用
+    /// </summary>
+    /// <param name="cardNo"></param>
+    /// <returns></returns>
+    private bool IsEd(string FlowNo)
+    {
+        Model.ModelList<Model.BsUserInfo> ouhosLst = new Model.ModelList<Model.BsUserInfo>();
+        ouhosLst = _objUserInfo.GetDynamic(string.Format(" Code={0}  ", FlowNo), null);
+        if (ouhosLst.Count > 0)
+            return true;
+        else return false;
+    }
+  
+
+    /// <summary>
+    /// 取xml的值
+    /// </summary>
+    /// <param name="xmlText">xml文本</param>
+    /// <param name="node1">第一个节点</param>
+    /// <param name="node2">第二个节点</param>
+    /// <param name="node3">第三个节点</param>
+    /// <returns></returns>
+    private static string GetXmlValue(string xmlText, string node1, string node2, string node3)
+    {
+        string xmlvalue = string.Empty;
+        XmlDocument xx = new XmlDocument();
+        xx.LoadXml(xmlText);//加载xml
+        XmlNodeList xxList = xx.GetElementsByTagName(node1); //取得节点名为row的XmlNode集合
+        foreach (XmlNode xxNode in xxList)
+        {
+            XmlNodeList childList = xxNode.ChildNodes; //取得row下的子节点集合
+            foreach (XmlNode xmNode in childList)
+            {
+                if (xmNode.Name.ToLower().Equals(node2.ToLower()))
+                {
+                    xmlvalue = xmNode.InnerText;
+                }
+                //xxNode.Attributes["name"].Value; //col节点name属性值                
+                XmlNodeList scHldList = xmNode.ChildNodes;
+                foreach (XmlNode xlNode in scHldList)
+                {
+                    if (xlNode.Name.ToLower().Equals(node3.ToLower()))
+                    {
+                        xmlvalue = xlNode.InnerText;
+                    }
+                }
+            }
+        }
+       
+        return xmlvalue;
+    }
+
+    /// <summary>
+    /// 判断是否存在column节点(测试用的,使用就不用此方法。)
+    /// </summary>
+    /// <param name="Request"></param>
+    /// <param name="column">写法如:"str1,str2"</param>
+    /// <returns></returns>
+    private String GetExist(String Request, String column)
+    {
+        foreach (String item in column.Split(','))
+        {
+            if (!Request.Contains(item))
+                return String.Format("<ResultCode>1</ResultCode><ErrorMsg>请联系接口程序员,参数{0}是否对应.</ErrorMsg>", item);
+        }
+        return string.Empty;
+    }
+
+}
+

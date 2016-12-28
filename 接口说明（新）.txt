@@ -1,0 +1,51 @@
+AddBalanceRecord       停用
+AutoOPBillCharge       缴费(停用)
+CardNoCheck            检验诊疗卡是否存在
+CheckAccPwd            诊疗卡卡账户密码校验
+ConsumptionRecord      诊疗卡扣费消费记录全部
+ConsumptionRecordTop   诊疗卡扣费消费记录前30行
+CreateCardPatInfo      为患者进行建卡 (停用)
+CreateJKCard           自助机激活健康卡/换卡号
+DOCTimeList            查询医生当天号时间段列表   
+DocList7Day            查询7天内能挂的医生号情况
+GetBillInfo            查询缴费项目
+GetInpatDetail         住院费用查询
+GetInpatInfo           住院号列表
+GetLisItems            获取检验列表 
+GetPatInfo             查询病人诊疗卡卡信息
+GetPatInfoByIDCard     查询病人身份证卡信息
+GetRegistList          查询当天挂号列表
+GetRegistListTop       查询病人挂号列表前30行
+GetRegistListZLD       查询已缴费病人挂号列表
+GetServiceTime         获取HIS服务器时间
+GetYYRegistList        查询病人预约号列表
+IDCardCheck            查询身份证是否存在 
+IfEKGH                 查询该病人是否可以挂儿科
+IfYYDept               查询该病人是否已预约了同一天，同一个科室的号
+IfYYWY                 查询该病人是否在预约挂号违约期内
+ModifyPwd              诊疗卡密码修改
+NetTest                测试自助工号是否存在
+OPRegist               挂号、预约号下单
+OPRegistJZ             急诊号下单
+OPYYRegist             预约报到取票
+PatChargeList          费用清单
+TestPrint              (停用)
+addMedicalcard         增加诊疗卡/为患者进行建卡（1）
+
+addRegist//确认挂号
+cancelLockRegist//取消锁号
+cancelRegist //取消挂号接口
+
+getAllRegInfo //获取所有医生号源信息
+
+getDeptInfo //获取科室信息
+getDoctorInfo //获取医生信息
+getPrescription //门诊缴费查询
+getRegInfo //医生号源信息查询（差排班数据）
+getSchInfo //获取医生排班信息（差排班数据）
+lockRegist //锁号
+medicalcardQueue //诊疗卡查询
+payOrder //缴费确认接口
+printRegInfo //取号接口
+refundPayCheck //退费预检查接口
+returnPay //退费接口

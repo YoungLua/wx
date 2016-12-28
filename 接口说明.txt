@@ -1,0 +1,338 @@
+AddBalanceRecord       停用
+AutoOPBillCharge       缴费(停用)
+CardNoCheck            检验诊疗卡是否存在  传入: CardNo-卡号 格式： <Request><CardNo>55646</CardNo></Request>
+                                           返回：PatientId-已存在病人ID  格式：<ResultCode>1</ResultCode><ErrorMsg >卡号已存在</ErrorMsg ><PatientId>251</PatientId>
+                                           				 格式：<ResultCode>0</ResultCode><Status>该卡号可以使用</Status>
+
+CheckAccPwd            诊疗卡卡账户密码校验 传入：CardNo-卡号 Password 密码 格式：<Request><CardNo>55646</CardNo><Password>123456</Password></Request>
+				 	    返回：				  <ResultCode >0</ResultCode>
+						  				  <ResultCode >1</ResultCode>
+
+ConsumptionRecord      诊疗卡扣费消费记录全部 传入：Patid - 病人ID ： 格式：<Request><Patid>55646</Patid></Request>
+					      返回：<ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg>
+						    <Record><RecordType>1/C/A</RecordType><Money>36.9/-36.9</Money>
+					 	    <RecordDate>2016-06-01</RecordDate><RecordDesc>充值/退款/消费</RecordDesc>
+						    <Remark>Memo</Remark><BkId>3165</BkId><BkNo>55646</BkNo><UserId>025</UserId>
+						    <RecordCode>1</RecordCode></Record>
+						    <ResultCode>1</ResultCode><ErrorMsg>没有消费记录</ErrorMsg>
+						    <ResultCode>1</ResultCode><ErrorMsg>消费记录查询失败，请联系系统管理员：{0}</ErrorMsg>
+
+
+ConsumptionRecordTop   诊疗卡扣费消费记录前30行 传入：Patid - 病人ID ： 格式：<Request><Patid>55646</Patid></Request>
+			返回：Money-金额 RecordDate-日期 RecordDesc - 类型 Remark - 说明 
+						格式：<ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg>
+						      <Record><RecordType>1/C/A</RecordType><Money>36.9/-36.9</Money>
+						      <RecordDate>2016-06-01</RecordDate><RecordDesc>充值/退款/消费</RecordDesc>
+						      <Remark>Memo</Remark><RecordCode>1/2/3</RecordCode></Record>
+						      <ResultCode>1</ResultCode><ErrorMsg>没有消费记录</ErrorMsg>
+						      <ResultCode>1</ResultCode><ErrorMsg>消费记录查询失败，请联系系统管理员：{0}</ErrorMsg>
+CreateCardPatInfo      为患者进行建卡 (停用)
+CreateJKCard           自助机激活健康卡/换卡号 传入：CardNo - 新卡号 IDCardNo-身份证号 UserId-发卡机Userid ： 格式：<Request><CardNo>55646</CardNo>
+														              <IDCardNo>440544444444444444</IDCardNo>
+														              <UserId>506</UserId></Request>
+					       返回：[506操作员[2016-06-01]在自助机上将卡号[55646]修改成[55647]
+						     <ResultCode>0</ResultCode><ErrorMsg>激活健康卡成功</ErrorMsg>
+						     <ResultCode>1</ResultCode><ErrorMsg>激活健康卡失败,错误信息{0}</ErrorMsg>
+
+
+DOCTimeList            查询医生当天号时间段列表   传入：DocId - 医生ID Day-日期 TimeSpanId-排班类型ID  ： 格式：<Request><DocId>516</DocId>
+														              <Day>23</Day>
+														              <TimeSpanId>1</TimeSpanId></Request>
+						返回：HBTime  DocTime  TimeSpanId-排班类型ID TimeSpanSubId  HasCount 
+						格式：<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><List>
+							<printDate><HBTime>{0}</HBTime><DocTime>{1}</DocTime><TimeSpanId>{4}</TimeSpanId>
+							<TimeSpanSubId>{2}</TimeSpanSubId><HasCount>{3}</HasCount></printDate></List>
+							<ResultCode>1</ResultCode><ErrorMsg>请与系统管理员联系日排班没安排医生</ErrorMsg>
+
+DocList7Day            查询7天内能挂的医生号情况 传入：DeptId - 科室ID RowId - 医生ID  ： 格式：<Request><DeptId>516</DeptId>
+												<RowId>23</RowId></Request>
+						返回：Date  LsType 
+						格式：<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><DOCHBList><Item><Date>{0}</Date><LsType>{1}</LsType></Item></DOCHBList>
+						      <ResultCode>1</ResultCode><ErrorMsg>请与系统管理员联系排班周没安排医生</ErrorMsg>
+
+GetBillInfo            查询缴费项目  传入：CardNo - 卡号 VisitID - 门诊病人ID  ： 格式：<Request><DeptId>516</DeptId>
+												<RowId>23</RowId></Request>
+<Response><ResultCode>1</ResultCode><ErrorMsg>当天没有挂号记录！</ErrorMsg></Response>
+<Response><ResultCode>2</ResultCode><ErrorMsg>没有缴费记录！</ErrorMsg></Response>
+<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><VisitID>{0}</VisitID><Items><Item><ItemId>{0}</ItemId><ItemName>{1}</ItemName><CateId>{2}</CateId><CateName>{3}</CateName><Price>{4}</Price><Num>{5}</Num><Amount>{6}</Amount><CtLoc>{7}</CtLoc><GG>{8}</GG></Item></Items>
+
+
+GetInpatDetail         住院费用查询 传入：HospId - 住院病人ID   格式 :  <Request><HospId>516</HospId></Request>
+				   返回：Type - 类型 Sfmc - 名称  Spec - 规格  Unit - 单位 Totality- 数量 Price - 价格 Amount - 总金额
+				   格式：<Items><Item><Type>{0}</Type><Sfmc>{1}</Sfmc><Spec>{2}</Spec><Unit>{3}</Unit><Totality>{4}</Totality>
+                    			 <Price>{5}</Price><Amount>{6}</Amount></Item></Items><ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>
+					<ResultCode>1</ResultCode><ErrorMsg>查询失败请联系管理员</ErrorMsg>
+					
+GetInpatInfo           住院号列表  传入：HospitalId - 分院ID  PatId - 病人ID   格式 :  <Request><HospitalId>516</HospitalId>
+										       		<HospitalId>516</HospitalId></Request>
+				   返回：Id - 住院ID InpatNo - 住院号 InTime - 入院时间 Locin - 入院科室 LocOut - 出院科室 InCount - 住院次数 OutTime - 出院时间
+				   格式：<Items><Item><Id>{0}</Id><InpatNo>{1}</InpatNo><InTime>{2}</InTime><Locin>{3}</Locin><LocOut>{4}</LocOut>
+                    			 <InCount>{5}</InCount><OutTime>{6}</OutTime></Item></Items><ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>
+                    			 <ResultCode>1</ResultCode><ErrorMsg>查询失败请联系管理员</ErrorMsg>
+
+GetLisItems            获取检验列表 传入：StartDate - 开始时间 EndDate -结束时间 CardNo - 卡号
+				    格式：<Request><StartDate>516</StartDate><EndDate>516</EndDate><CardNo>516</CardNo></Request>
+				    返回：ApplyNo - 检验号 SendTime - 申请时间 RepName - 检验时间 RepCate -检验类型  RepCateName - 医生姓名 Status -结果状态 LabId - 检验条码ID MzRegNo - 门诊流水号
+				    格式：<Response><ResultCode>1</ResultCode><ErrorMsg>没有检验记录！</ErrorMsg></Response>
+                    			 <LisItemList><Items><ApplyNo>{0}</ApplyNo><SendTime>{1}</SendTime><RepName>{2}</RepName><RepCate>{3}</RepCate><RepCateName>{4}</RepCateName>
+                    			 <Status>{5}</Status><LabId>{6}</LabId><MzRegNo>{7}</MzRegNo></Items></LisItemList> <ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>
+
+
+GetPatInfo             查询病人诊疗卡卡信息 传入： CardNo - 卡号
+格式：<Request><CardNo>516</CardNo></Request>
+返回：CardNo-卡号 AccBalance - 金额  PatName - 病人姓名 IDCard - 身份证号 Patid - 病人ID BuildTime - 建卡时间 Nation -民族 Sex - 性别  Birthday - 出生日期 Tel -联系电话  
+格式：<CardNo>{0}</CardNo><CardStatus>N</CardStatus><AccdNo>{1}</AccdNo><AccdStatus>N</AccdStatus><AccBalance>{2}</AccBalance>
+                    <PatName>{3}</PatName><IDCard>{4}</IDCard><Patid>{5}</Patid><BuildTime>{6}</BuildTime><ChargeType>自费</ChargeType><Nation>{7}</Nation><Sex>{8}</Sex><Birthday>{9}</Birthday><Tel>{10}</Tel><ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg>
+<ResultCode>1</ResultCode><ErrorMsg>卡信息查询失败，请联系系统管理员</ErrorMsg>
+
+GetPatInfoByIDCard     查询病人身份证卡信息  传入：IDCardNo - 身份证号 
+格式：<Request><IDCardNo>516</IDCardNo></Request>
+返回：CardNo-卡号  AccBalance - 金额  PatName - 病人姓名 IDCard - 身份证号 Patid - 病人ID BuildTime - 建卡时间 Nation -民族 Sex - 性别  Birthday - 出生日期 Tel -联系电话
+格式：<CardNo>{0}</CardNo><CardStatus>N</CardStatus><AccdNo>{1}</AccdNo><AccdStatus>N</AccdStatus><AccBalance>{2}</AccBalance>
+                    <PatName>{3}</PatName><IDCard>{4}</IDCard><Patid>{5}</Patid><BuildTime>{6}</BuildTime><ChargeType>自费</ChargeType><Nation>{7}</Nation><Sex>{8}</Sex><Birthday>{9}</Birthday><Tel>{10}</Tel><ResultCode>0</ResultCode><ErrorMsg>成功</ErrorMsg>
+<ResultCode>1</ResultCode><ErrorMsg>卡信息查询失败，请联系系统管理员：{0}</ErrorMsg>
+
+GetRegistList          查询当天挂号列表 传入：CardNo - 卡号
+格式：<Request><CardNo>516</CardNo></Request>
+返回：RegisterDate -挂号日期 VisitNO -门诊流水号 VisitID - 门诊病人ID  Status - 是否就诊 PatName - 病人姓名 DepName - 科室名称 DoctName -医生名称 Room - 药房科室名称
+格式：<Response><ResultCode>1</ResultCode><ErrorMsg>没有挂号记录！</ErrorMsg></Response>
+<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><RbInfo><RegisterDate>{0}</RegisterDate><VisitNO>{1}</VisitNO><VisitID>{2}</VisitID><Status>{3}</Status><PatName>{4}</PatName><DepName>{5}</DepName><DoctName>{6}</DoctName><Room>{7}</Room></RbInfo>
+
+GetRegistListTop       查询病人挂号列表前30行 传入：CardNo - 卡号
+格式：<Request><CardNo>516</CardNo></Request>
+返回：RegisterDate - 挂号时间  VisitNO - 门诊流水号 VisitID -门诊病人ID IsDiagnoses - 是否就诊 PatName -病人姓名 DepName -科室名称 DoctName - 医生名称
+格式：<Response><ResultCode>1</ResultCode><ErrorMsg>没有挂号记录！</ErrorMsg></Response>  
+<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><RbInfo><RegisterDate>{0}</RegisterDate><VisitNO>{1}</VisitNO><VisitID>{2}</VisitID><IsDiagnoses>{3}</IsDiagnoses><PatName>{4}</PatName><DepName>{5}</DepName><DoctName>{6}</DoctName></RbInfo>
+
+GetRegistListZLD       查询已缴费病人挂号列表 传入：传入：CardNo - 卡号
+格式：<Request><CardNo>516</CardNo></Request>
+返回：RegisterDate - 挂号时间  VisitNO - 门诊流水号 VisitID -门诊病人ID IsDiagnoses - 是否就诊 PatName -病人姓名 DepName -科室名称 DoctName - 医生名称
+格式：<Response><ResultCode>1</ResultCode><ErrorMsg>没有挂号记录！</ErrorMsg></Response>
+ <RbInfo><RegisterDate>{0}</RegisterDate><VisitNO>{1}</VisitNO><VisitID>{2}</VisitID><IsDiagnoses>{3}</IsDiagnoses><PatName>{4}</PatName><DepName>{5}</DepName><DoctName>{6}</DoctName></RbInfo>
+
+GetServiceTime         获取HIS服务器时间 返回：服务器当前时间
+
+
+GetYYRegistList        查询病人预约号列表 传入：CardNo - 卡号 Day - 日期	
+格式：<Request><CardNo>516</CardNo><Day>516</Day></Request>
+<req><CardNo>660000001</CardNo><Day>2016-06-01</Day></req>
+返回：RegisterDate - 挂号时间 MzRegNo - 门诊流水号 VisitID - 门诊病人ID  IsDiagnoses - 是否就诊  PatName - 病人姓名  DepName - 科室名称  DoctName - 医生名称 opertime - 登记时间
+  timespar - 预约班次时间范围 yyhb - 挂号类别  RMB - 挂号金额  DocRegID - 医生类别 timesName - 挂号阶段名称  room - 药房科室名称 yxtime - 预约班次开始时间
+格式：<Response><ResultCode>1</ResultCode><ErrorMsg>没有挂号记录！</ErrorMsg></Response>
+<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><RbInfo><RegisterDate>{0}</RegisterDate><MzRegNo>{1}</MzRegNo><VisitID>{2}</VisitID><IsDiagnoses>{3}</IsDiagnoses><PatName>{4}</PatName><DepName>{5}</DepName><DoctName>{6}</DoctName><opertime>{7}</opertime><timespar>{8}</timespar><yyhb>{9}</yyhb><RMB>{10}</RMB><DocRegID>{11}</DocRegID><timesName>{12}</timesName><room>{13}</room><yxtime>{14}</yxtime></RbInfo>
+
+IDCardCheck            查询身份证是否存在 传入：IDCardNo - 身份证号
+格式：<Request><IDCardNo>516</IDCardNo></Request>
+返回：PatientId - 病人ID
+格式：<ResultCode>1</ResultCode><ErrorMsg >已办卡</ErrorMsg ><PatientId>{0}</PatientId>
+<ResultCode>0</ResultCode><Status>可办卡</Status>
+
+IfEKGH                 查询该病人是否可以挂儿科 传入：Patid - 病人ID HospitalId - 分院ID LocationName - 挂号科室名称
+格式：<Request><Patid>516</Patid><HospitalId>516</HospitalId><LocationName>516</LocationName></Request>
+<req><Patid>12864</Patid><HospiTalId>31</HospiTalId><LocationName>门诊儿科</LocationName></req>
+返回：ErrorMsg
+格式：<Response><ResultCode>0</ResultCode><ErrorMsg>可以挂号！</ErrorMsg></Response>
+<Response><ResultCode>1</ResultCode><ErrorMsg>年龄大于15，不能挂儿科！</ErrorMsg></Response
+
+IfYYDept               查询该病人是否已预约了同一天，同一个科室的号 传入：Patid - 病人ID HospitalId - 分院ID  DeptId - 科室ID  Day - 日期
+格式：<Request><Patid>516</Patid><HospitalId>516</HospitalId><DeptId>516</DeptId><Day>516</Day></Request>
+<req><Patid>12864</Patid><HospiTalId>31</HospiTalId><DeptId>1582</DeptId><Day>2016-06-01</Day></req>
+返回：ErrorMsg
+格式：<Response><ResultCode>1</ResultCode><ErrorMsg>不能预约！</ErrorMsg></Response>
+<Response><ResultCode>0</ResultCode><ErrorMsg>可以预约！</ErrorMsg></Response>
+
+IfYYWY                 查询该病人是否在预约挂号违约期内 传入：Patid - 病人ID HospitalId - 分院ID   
+格式：<req><Patid>12864</Patid><HospiTalId>31</HospiTalId></req>
+返回：ErrorMsg
+格式：<Response><ResultCode>0</ResultCode><ErrorMsg>可以预约挂号！</ErrorMsg></Response>
+<Response><ResultCode>1</ResultCode><ErrorMsg>:在违约期内！</ErrorMsg></Response>
+
+ModifyPwd              诊疗卡密码修改 传入：CardNo - 卡号 NewPassword - 新密码
+格式： <Request><CardNo>516</CardNo><NewPassword>516</NewPassword></Request>
+返回：NewPassword - 新密码
+格式：<ResultCode>0</ResultCode><ErrorMsg></ErrorMsg><NewPassword>{0}</NewPassword>
+<ResultCode>1</ResultCode><ErrorMsg></ErrorMsg>
+
+NetTest                测试自助工号是否存在 传入：UserId - 自助机USERID
+格式：<Request><UserId>516</UserId></Request>
+返回：HospitalId - 分院ID
+格式：<Response><ResultCode>1</ResultCode><ErrorMsg>该机器尚未维护，请联系相关人员！</ErrorMsg></Response>
+<Response><ResultCode>0</ResultCode><HospitalId>{0}</HospitalId><ErrorMsg>通讯正常</ErrorMsg></Response>
+<Response><ResultCode>1</ResultCode><ErrorMsg>与HIS数据通讯失败！</ErrorMsg></Response>
+
+OPRegist               挂号、预约号下单 传入：UserId - 预约挂号机ID,SumFee - 挂号金额,DocId - 医生ID,Day - 日期,DocRegID - 挂号医生级别,PatId - 病人ID,DeptId - 科室ID,TimeSpanSubId - 班次ID
+格式：<Request><OPRegist><UserId>516</UserId><SumFee>516</SumFee><DocId>516</DocId><Day>516</Day><DocRegID>516</DocRegID>
+<PatId>516</PatId><DeptId>516</DeptId><TimeSpanSubId>516</TimeSpanSubId></OPRegist></Request>
+返回：CardNo - 卡号 PatName - 病人姓名  DepDesc - 科室名称 RMB - 挂号金额  UserId - 预约排号机USERid SessionType - 医生级别 LocInfo - 挂号医生类别 DocDesc - 医生姓名 DocTime - 预约排号班次时段 
+	XNo - 候诊排队序号 MzRegNo - 门诊流水号 Outid - 门诊病人ID newDate - 当前时间 DeptAdd - 科室地址 
+格式：<ResultCode>3</ResultCode><ErrorMsg>挂号失败，停诊</ErrorMsg>\
+<ResultCode>3</ResultCode><ErrorMsg>挂号失败,该卡号在同一天已经预约了该医生</ErrorMsg>
+<ResultCode>2</ResultCode><ErrorMsg>挂号失败，号满</ErrorMsg>
+<ResultCode>1</ResultCode><ErrorMsg>挂号失败，{0}</ErrorMsg>
+
+<ResultCode>0</ResultCode><ErrorMsg>挂号成功</ErrorMsg><SerID></SerID><PrintData> <CardNo>{0}</CardNo><PatName>{1}</PatName>
+                <DepDesc>{2}</DepDesc><RMB>{3}</RMB><UserId>{4}</UserId><SessionType>{5}</SessionType><LocInfo>{6}</LocInfo><DocDesc>{7}</DocDesc><DocTime>{8}</DocTime><XNo>{9}</XNo><MzRegNo>{10}</MzRegNo> <Outid>{11}</Outid> <intBkStoreLogID>{12}</intBkStoreLogID><newDate>{13}</newDate><DeptAdd>{14}</DeptAdd></PrintData>
+
+
+OPRegistJZ             急诊号下单 传入：UserId - 预约挂号机ID,SumFee - 挂号金额,Day - 日期,PatId - 病人ID,DeptId - 科室ID
+格式：<Request><OPRegist><UserId>516</UserId><SumFee>516</SumFee><DocId>516</DocId><Day>516</Day>
+<PatId>516</PatId><DeptId>516</DeptId></OPRegist></Request>
+返回：CardNo - 卡号 PatName - 病人姓名  DepDesc - 科室名称 RMB - 挂号金额  UserId - 预约排号机USERid SessionType - 医生级别 LocInfo - 挂号医生类别 DocDesc - 医生姓名 DocTime - 预约排号班次时段 
+	XNo - 候诊排队序号 MzRegNo - 门诊流水号 Outid - 门诊病人ID newDate - 当前时间 DeptAdd - 科室地址 
+格式：<ResultCode>1</ResultCode><ErrorMsg>挂号失败，{0}</ErrorMsg>
+
+<ResultCode>0</ResultCode><ErrorMsg>挂号成功</ErrorMsg>
+<SerID></SerID><PrintData> <CardNo>{0}</CardNo><PatName>{1}</PatName>
+ <DepDesc>{2}</DepDesc><RMB>{3}</RMB><UserId>{4}</UserId><SessionType>{5}</SessionType>
+<LocInfo>{6}</LocInfo><DocDesc>{7}</DocDesc><DocTime>{8}</DocTime><XNo>{9}</XNo><MzRegNo>{10}</MzRegNo> <Outid>{11}</Outid> <intBkStoreLogID>{12}</intBkStoreLogID>
+<newDate>{13}</newDate><DeptAdd>{14}</DeptAdd></PrintData>
+
+OPYYRegist             预约报到取票 传入：UserId - 预约挂号机ID,DocRegID - 医生挂号类别,VisitID - 门诊病人ID,CardNo - 卡号
+格式：<Request><OPRegist><UserId>516</UserId><DocRegID>516</DocRegID><VisitID>516</VisitID><CardNo>516</CardNo></OPRegist></Request>
+返回：CardNo - 卡号 PatName - 病人姓名 DepDesc -科室名称 RMB - 挂号金额 UserId - 预约挂号机USERID  SessionType - 医生级别 LocInfo DocDesc - 医生姓名
+DocTime - 预约挂号班次时段 XNo - 排队序列号 MzRegNo - 门诊流水号 Outid - 门诊病人ID newDate - 挂号班次名称 timeName - 预约班次名称
+格式：<ResultCode>1</ResultCode><ErrorMsg>不是有效的预约号</ErrorMsg>
+<ResultCode>1</ResultCode><ErrorMsg>取票失败{0}</ErrorMsg>
+<ResultCode>0</ResultCode><ErrorMsg>挂号成功</ErrorMsg><SerID></SerID><PrintData>
+<CardNo>{0}</CardNo><PatName>{1}</PatName>
+<DepDesc>{2}</DepDesc><RMB>{3}</RMB><UserId>{4}</UserId>
+<SessionType>{5}</SessionType><LocInfo>{6}</LocInfo><DocDesc>{7}</DocDesc>
+<DocTime>{8}</DocTime><XNo>{9}</XNo><MzRegNo>{10}</MzRegNo> <Outid>{11}</Outid><intBkStoreLogID>{12}</intBkStoreLogID>
+<newDate>{13}</newDate><timeName></timeName></PrintData>
+
+
+PatChargeList          费用清单 传入：CardNo - 卡号 VisitID - 门诊病人ID
+格式：<Request><CardNo>516</CardNo><VisitID>516</VisitID></Request>
+返回：ItemId - 项目编码 ItemName - 项目名称 Price - 单价 Num - 数量 Amount - 金额 ItemClass - 发票类别 Units - 单位 Spec  - 规格
+格式：<PatChargeList><PatName>{0}</PatName><ChargeType>{1}</ChargeType><InvoTime>{2}</InvoTime>
+<Items><Item><ItemId>{0}</ItemId><ItemName>{1}</ItemName><Price>{2}</Price><Num>{3}</Num><Amount>{4}</Amount>
+<ItemClass>{5}</ItemClass><Units>{6}</Units><Spec>{7}</Spec></Item></Items></PatChargeList><ResultCode>0</ResultCode><ErrorMsg></ErrorMsg>
+
+<ResultCode>1</ResultCode><ErrorMsg>查询失败请联系管理员</ErrorMsg>
+
+TestPrint              (停用)
+addMedicalcard         增加诊疗卡/为患者进行建卡 传入：patName - 病人姓名 phone - 联系电话 gender - 性别 address - 住址 Idcard - 身份证号码
+格式：<Req><patName>516</patName><phone>516</phone><gender>516</gender><address>516</address><Idcard>516</Idcard></Req>
+返回：medicalcard - 卡号 resultDesc - 异常信息
+格式：<resultCode>0</resultCode><resultDesc>成功</resultDesc><medicalcard>{0}</medicalcard>
+<resultCode>1</resultCode><resultDesc>{0}</resultDesc><medicalcard></medicalcard>
+
+
+
+addRegist//确认挂号 传入： orderIdHIS - 门诊流水号  paymeth - 是否报到
+格式：<Req><orderIdHIS>516</orderIdHIS><paymeth>516</paymeth></Req>
+返回：resultDesc - 异常信息
+格式：<resultCode>0</resultCode><resultDesc>成功</resultDesc>
+<resultCode>1</resultCode><resultDesc>没有符合条件的数据</resultDesc>
+<resultCode>1</resultCode><resultDesc>{0}</resultDesc>
+
+cancelLockRegist//取消锁号 传入：orderIdHIS - 门诊流水号
+格式：<Req><orderIdHIS>516</orderIdHIS></Req>
+返回：
+格式：<resultCode>0</resultCode><resultDesc>成功</resultDesc>
+<resultCode>1</resultCode><resultDesc>{0}</resultDesc>
+<resultCode>1</resultCode><resultDesc>没有可以取消的数据</resultDesc>
+
+cancelRegist //取消挂号接口 传入：  orderIdHIS - 门诊流水号    cancelTime - 系统当前时间   cancelReason - 作废原因
+格式：<Req><orderIdHIS>516</orderIdHIS><cancelTime>516</cancelTime><cancelReason>516</cancelReason></Req>
+返回：resultDesc - 异常信息
+格式：<resultCode>0</resultCode><resultDesc>成功</resultDesc>
+<resultCode>1</resultCode><resultDesc>{0}</resultDesc>
+<resultCode>1</resultCode><resultDesc>没有可以取消的数据</resultDesc>
+
+
+getAllRegInfo //获取所有医生号源信息 传入： getAllRegInfo //获取所有医生号源信息
+格式：<Req><hospitalId>516</hospitalId><startDate>516</startDate><endDate>516</endDate></Req>
+返回：
+格式：<regInfo><doctorId>{0}</doctorId><regDate>{0}</regDate><regStatus>{1}</regStatus><TimeRegInfoList><timeRegInfo><startTime>{0}</startTime><endTime>{1}</endTime><regTotalCount>{2}</regTotalCount><regleaveCount>{3}</regleaveCount><seqCode>{4}</seqCode><shiftType>{5}</shiftType></timeRegInfo></TimeRegInfoList></regInfo>
+
+
+getDeptInfo //获取科室信息 传入：deptId - 科室ID  HospitalId - 分院ID
+格式：<Req><deptId>516</deptId><HospitalId>516</HospitalId></Req>
+返回：deptId - 科室ID deptName - 科室名称 parentId section - 科室名称 bookable - 是否为挂号科室 DoctorLocation - 是否属于当前科室医生
+格式：<deptInfo><deptId>{0}</deptId><deptName>{1}</deptName><parentId>{4}</parentId><desc>{2}</desc><section>{3}</section><bookable>{5}</bookable><featured/><DoctorLocation>{6}</DoctorLocation></deptInfo>
+
+getDoctorInfo //获取医生信息 传入： hospitalId - 分院ID  deptId - 科室ID  doctorId - 医生ID
+格式：<Req><hospitalId>516</hospitalId><deptId>1599</deptId><doctorId>64</doctorId></Req>
+<req><hospitalId>31</hospitalId><deptId></deptId><doctorId>63</doctorId></req>
+返回：doctorId - 医生ID  doctorName - 医生姓名  deptId - 科室ID Title - 医生等级   Gender - 性别  Desc - 医生介绍
+格式：<doctorInfo><doctorId>{0}</doctorId><doctorName>{1}</doctorName><deptId>{2}</deptId><Title>{3}</Title><Gender>{4}</Gender><Desc>{5}</Desc></doctorInfo>
+
+getPrescription //门诊缴费查询 传入：cardNo - 卡号 clinicNo - 门诊流水号  status - 是否缴费 [是=2 否=1]
+格式：<Req><cardNo>516</cardNo><clinicNo>516</clinicNo><status>516</status></Req>
+返回：sumFee - 总金额 itemName - 项目名称  account - 数量 itemPrice - 单价 unit - 单位  money - 金额 type - 费用类别
+格式：<ResultCode>0</ResultCode><ResultDesc>获取缴费单明细成功</ResultDesc><sumFee>{0}</sumFee><prescItemList>
+<itemName>{0}</itemName><account>{1}</account><itemPrice>{2}</itemPrice>
+<unit>{3}</unit><money>{4}</money><type>{5}</type></prescItemList>
+
+<ResultCode>1</ResultCode><ResultDesc>获取缴费单明细失败，没有查询到相应记录！</ResultDesc>
+
+
+getRegInfo //医生号源信息查询 传入：hospitalId - 分院ID  deptId - 科室ID doctorId - 医生ID  startDate - 开始时间  endDate - 结束时间
+格式：<Req><hospitalId >516</hospitalId ><deptId>516</deptId><doctorId>516</doctorId><startDate>516</startDate><endDate>516</endDate></Req>
+返回：doctorId - 医生ID regDate - 出诊日期  regStatus - 出诊状态 startTime - 开始时间 endTime - 结束时间 
+regTotalCount - 可预约的总号源数 regleaveCount - 剩余号源数 seqCode -每个时段的号源的唯一标识  shiftType - 班别类型 (1:上午 2：下午 3:夜班)
+格式：<regInfo><doctorId>{0}</doctorId><regDate>{0}</regDate>
+<regStatus>{1}</regStatus><TimeRegInfoList><timeRegInfo>
+<startTime>{0}</startTime><endTime>{1}</endTime><regTotalCount>{2}</regTotalCount><regleaveCount>{3}</regleaveCount><seqCode>{4}</seqCode>
+<shiftType>{5}</shiftType></timeRegInfo></TimeRegInfoList></regInfo>
+
+getSchInfo //获取医生排班信息 传入：hospitalId 医院代码 startDate 开始日期 endDate 结束日期
+格式：<req><hospitalId>1001</hospitalId><startDate>2013-03-22</startDate><endDate>201</endDate></Req>
+返回：regInfo 医生排班信息的集合  doctorId 医生ID   shiftId  班别ID  shiftType 班别类型 (1:上午 2：下午 3:夜班)  schDate 排班日期 schRegTypeId 挂号类型ID schFee 总费用
+schRegfee 挂号费 schTreatfee 诊疗费 schBegintime 开始时间 schEndtime 结束时间 schRegMax 最大挂号量 schRegCount 已挂号量   schLimited 是否限号 schSegmented 是否分时段（1.分时段，0不分时段）
+LocationId 科室Id（医生登录的科室） available 停诊不可用，0 停诊  1 可用
+格式：<regInfo><doctorId>{0}</doctorId><shiftId>{1}</shiftId><shiftType>{2}</shiftType>
+<schDate>{3}</schDate><schRegTypeId>{4}</schRegTypeId><schFee>{5}</schFee><schRegfee>{6}</schRegfee><schTreatfee>{7}</schTreatfee><schBegintime>{8}</schBegintime><schEndtime>{9}</schEndtime>
+<schRegMax>{10}</schRegMax><schRegCount>{11}</schRegCount><schLimited>{12}</schLimited><schSegmented>{13}</schSegmented><LocationId>{14}</LocationId>
+<available>{15}</available><DiagRoom>{16}</DiagRoom><SpecialtyRoom>{17}</SpecialtyRoom></regInfo>
+
+lockRegist //锁号 传入：deptId 科室代码 doctorId 医生代码 regDate 预约日期 shiftType 时段（班次）（1-上午；2-下午） startTime 开始时间 endTime 结束时间
+ userGender 挂号人性别 parName 监护人姓名(当挂号人为未成年人时才赋予相应值) patCId 监护人身份证号 address 监护人地址 patMobile 监护人手机号码 
+userBirthday 挂号人生日 operIdCard 挂号人身份证号码 operName  挂号人姓名 
+operMobile 挂号人手机号码 orderType - 预约方式0-WEB 1-WAP 3-APP orderTime - 下订单时间 medicalcard - 诊疗卡 regfee 挂号费 treatfee 诊疗费 seqCode 号源唯一标示
+格式：<req><deptId>1001</deptId><doctorId>2013-03-22</doctorId><regDate>201</regDate>
+<shiftType>201</shiftType><startTime>2016-06-27</ startTime><endTime>2016-06-28</endTime>
+<userGender>201</userGender><parName></parName><patCId></patCId>
+<address></address><patMobile></patMobile>
+<userBirthday>1992-01-28</userBirthday><operIdCard>201</operIdCard><operName>201</operName>
+<operMobile>201</operMobile><orderType>201</orderType><orderTime>201</orderTime>
+<medicalcard>201</medicalcard><regfee>201</regfee>
+<treatfee>201</treatfee><treatfee>201</treatfee><seqCode>201</seqCode>
+</Req>
+
+<req><doctorId>68</doctorId><deptId>1597</deptId><regDate>2016-06-24</regDate><shiftType>1</shiftType><startTime>8:00 :00</startTime><endTime>11:30:00</endTime><seqCode>Z5                  <qCode><medicalcard>660000001</medicalcard><operIdCard>445381199203181115</operIdCard><operName>张森源</operName><userGender>1</userGender><operMobile>13630193907</operMobile><userBirthday>1992-03-18</userBirthday><regfee>0.9</regfee><treatfee>27</treatfee><orderType>1</orderType><orderTime>2016-06-27 10:06:49</orderTime></req>
+<req><doctorId>68</doctorId><deptId>1597</deptId><regDate>2016-06-24</regDate><shiftType>1</shiftType><startTime>8:00 :00</startTime><endTime>11:30:00</endTime><seqCode>Z5                  </ seqCode><medicalcard>660000001</medicalcard><operIdCard>445381199203181115</operIdCard><operName>张森源</operName><userGender>1</userGender><operMobile>13630193907</operMobile><userBirthday>1992-03-18</userBirthday><regfee>0.9</regfee><treatfee>27</treatfee><orderType>1</orderType><orderTime>2016-06-27 10:06:49</orderTime></req>
+
+返回：resultDesc 违约信息/提示信息
+格式：<resultCode>1</resultCode><resultDesc>{0}</resultDesc><orderIdHIS></orderIdHIS><userFlag></userFlag><userHISId></userHISId><medicalcard></medicalcard><infoReq></infoReq>
+
+medicalcardQueue //诊疗卡查询 传入：patientName - 患者姓名  medicalcardNum - 诊疗卡号
+格式：<req><patientName>1001</patientName><medicalcardNum>2013-03-22</medicalcardNum></Req>
+返回：	patientIdCard - 常用预约人身份证号  mobile - 常用预约人手机号 birthday - 出生日期 sex - 性别（1、男，2、女） address - 地址
+格式：<resultCode>0/1</resultCode><patientIdCard>{0}</patientIdCard><mobile>{1}</mobile>
+<birthday>{2}</birthday><sex>{3}</sex><address>{4}</address>
+
+payOrder //缴费确认接口 传入：orderId - 订单号  orderIdPAY - 第三方支付平台的订单号 orderIdHIS - HIS系统订单号 payAmout - 支付金额(单位“分”) 
+payMode - 支付方式：1-微信支付2-支付宝3-银联   payTime - 交易时间
+格式：<req><orderId>1001</orderId><orderIdPAY>2013-03-22</orderIdPAY><orderIdHIS>2013-03-22</orderIdHIS>
+<payAmout>2013-03-22</payAmout><payMode>2013-03-22</payMode><payTime>2013-03-22</payTime></Req>
+返回：resultCode 处理结果代码：0-成功  resultDesc  处理结果描述
+格式：<resultCode>0</resultCode><resultDesc>缴费成功！</resultDesc>
+
+printRegInfo //取号接口 传入：orderIdHIS - 门诊流水号
+格式：<req><orderIdHI>1001</orderIdHI></Req>
+返回：infoSeq    nowSeq  resultCode 处理结果代码：0-成功  resultDesc  处理结果描述
+格式：<infoSeq>{0}</infoSeq><nowSeq>{1}</nowSeq><resultCode>0</resultCode><resultDesc>成功</resultDesc>
+
+refundPayCheck //退费预检查接口 传入： hospitalId - 医院代码  orderIdHIS - 门诊流水号 returnFee - 退费金额(单位“分”) returnTime - 退费时间 returnReason - 退费原因 seqCode - 号源唯一标示
+格式：<req><hospitalId>1001</hospitalId><orderIdHIS>1001</orderIdHIS><returnFee>1001</returnFee><returnTime>1001</returnTime><returnReason>1001</returnReason></Req>
+返回： resultCode 处理结果代码：0-成功  resultDesc  处理结果描述
+格式：<resultCode>0</resultCode><resultDesc>可以退费</resultDesc>
+
+returnPay //退费接口 传入： hospitalId - 医院代码  orderIdHIS - 门诊流水号 returnFee - 退费金额(单位“分”) returnTime - 退费时间 returnReason - 退费原因
+格式：<req><hospitalId>1001</hospitalId><orderIdHIS>1001</orderIdHIS><returnFee>1001</returnFee><returnTime>1001</returnTime><returnReason>1001</returnReason></Req>
+返回： resultCode 处理结果代码：0-成功  resultDesc  处理结果描述
+格式：<resultCode>0</resultCode><resultDesc>成功</resultDesc>
+
+GetRegistListTop  //查询医生挂号列表 传入：doctorid

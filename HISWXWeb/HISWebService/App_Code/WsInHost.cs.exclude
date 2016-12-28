@@ -1,0 +1,332 @@
+﻿using System;
+using System.Collections; 
+using System.Web;
+using System.Web.Services;
+using System.Web.Services.Protocols; 
+
+/// <summary>
+///WsInHost 的摘要说明
+/// </summary>
+[WebService(Namespace = "http://tempuri.org/")]
+[WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
+//若要允许使用 ASP.NET AJAX 从脚本中调用此 Web 服务，请取消对下行的注释。 
+// [System.Web.Script.Services.ScriptService]
+public class WsInHost : System.Web.Services.WebService
+{
+    public static bool IsLoad=true;
+    public WsInHost()
+    {
+        if (IsLoad) StartLoadData();
+        IsLoad = false;
+    }
+    [WebMethod]
+    public void StartLoadData()
+    {
+       BLL.CGblSetting objGblSetting = new BLL.CGblSetting();
+        Model.Configuration.Global.LstGblSetting = objGblSetting.GetAll();
+
+        BLL.Common.DateTimeHandler.IsServerGetTime = true;
+
+        Model.Configuration.Global.IsLoad = true;
+        BLL.SockIOPoolComm.pool = null;
+        BLL.MemoryDate.StartLoadData();
+        Model.Configuration.Global.IsLoad = false;
+
+        BLL.MemoryDate.FillBaseTableRow(Model.Configuration.Global.LstBsItem, "BsItem", BLL.MemoryDate.UseDataType);
+        Model.Configuration.Global.IsLoadBsItem = true;
+
+        BLL.MemoryDate.FillBsItemYbTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.BsItemYbInfo>("CBsItemYb"), BLL.MemoryDate.UseDataType);
+        BLL.MemoryDate.FillBaseTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.BsItemDrugInfo>("CBsItemDrug"), "BsItemDrug", BLL.MemoryDate.UseDataType);
+        BLL.MemoryDate.FillBaseTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.CkItemInfo>("CCkItem"), "CkItem", BLL.MemoryDate.UseDataType);
+        BLL.MemoryDate.FillBsItemAttachTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.BsItemAttachInfo>("CBsItemAttach"), BLL.MemoryDate.UseDataType);
+
+
+        BLL.MemoryDate.LoadBaseTable(BLL.MemoryDate.LoadDataType);
+        //BLL.MemoryDate.FillBsItemYbTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.BsItemYbInfo>("CBsItemYb"), BLL.MemoryDate.LoadDataType);
+        //BLL.MemoryDate.FillBaseTableRow(Model.Configuration.Global.LstBsItem, "BsItem" ,BLL.MemoryDate.LoadDataType);
+
+        BLL.MemoryDate.FillBaseTableRow(Model.Configuration.Global.LstBsItem, "BsItem", BLL.MemoryDate.LoadDataType);
+        BLL.MemoryDate.FillBsItemYbTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.BsItemYbInfo>("CBsItemYb"), BLL.MemoryDate.LoadDataType);
+        BLL.MemoryDate.FillBaseTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.BsItemDrugInfo>("CBsItemDrug"), "BsItemDrug", BLL.MemoryDate.LoadDataType);
+        BLL.MemoryDate.FillBaseTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.CkItemInfo>("CCkItem"), "CkItem", BLL.MemoryDate.LoadDataType);
+        BLL.MemoryDate.FillBsItemAttachTableRow(BLL.MemoryDate.GetBaseTableLstInfo<Model.BsItemAttachInfo>("CBsItemAttach"), BLL.MemoryDate.LoadDataType);
+
+    }
+
+    [WebMethod]
+    public string HelloWorld()
+    {
+        //new Utilities.Document().SaveLog("65", "D:\\Log.log");
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "Hello World" + BLL.Common.DateTimeHandler.GetServerDateTime();
+    } 
+
+
+    /// <summary>
+    /// 刷新查对医嘱数据，hospid=0 则刷新整个locationid
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmAdviceAuthServer(int hospid, int locationid)
+    {
+
+        XYHIS.FrmAdviceAuthServer frm = new XYHIS.FrmAdviceAuthServer();
+
+        if (hospid > 0)
+        {
+            frm.Refresh_InHosLstByLocation(locationid);
+            frm.Refresh_PatRecipeByHospId(hospid);
+        }
+        else
+        {
+            frm.Refresh_PatRecipeByLocation(locationid);
+        }
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+
+    }
+
+    /// <summary>
+    /// 刷新查对医嘱数据，hospid=0 则刷新整个locationid 有跟踪记录
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmAdviceAuthServerByLog(int hospid, int locationid, string Ip, int userid, string TraceType)
+    {
+        try
+        {
+
+            XYHIS.FrmAdviceAuthServer frm = new XYHIS.FrmAdviceAuthServer();
+            frm.IP = Ip;
+            frm.UserID = userid;
+            frm.TraceType = TraceType;
+
+            if (hospid > 0)
+            {
+                frm.Refresh_InHosLstByLocation(locationid);
+                frm.Refresh_PatRecipeByHospId(hospid);
+            }
+            else
+            {
+                frm.Refresh_PatRecipeByLocation(locationid);
+            }
+            return "刷新成功" + frm.Messages;
+
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+    }
+
+
+    /// <summary>
+    /// 刷新查对医嘱数据，多个病人
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmAdviceAuthServerList(System.Collections.Generic.List<int> lst, int locationid)
+    {
+
+        XYHIS.FrmAdviceAuthServer frm = new XYHIS.FrmAdviceAuthServer();
+        frm.Refresh_InHosLstByLocation(locationid);
+        frm.Refresh_PatRecipeByHospIdList(lst);
+
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+
+    }
+
+
+    /// <summary>
+    /// 刷新查对医嘱数据，多个病人 有跟踪记录
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns> 
+    [WebMethod]
+    public string SetFrmAdviceAuthServerListByLog(System.Collections.Generic.List<int> lst, int locationid, string Ip, int userid, string TraceType)
+    {
+
+        try
+        {
+            XYHIS.FrmAdviceAuthServer frm = new XYHIS.FrmAdviceAuthServer();
+            frm.IP = Ip;
+            frm.UserID = userid;
+            frm.TraceType = TraceType;
+
+            frm.Refresh_InHosLstByLocation(locationid);
+            frm.Refresh_PatRecipeByHospIdList(lst);
+            return "刷新成功" + frm.Messages;
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// 刷新病区申请数据，hospid=0 则刷新整个locationid
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInDrugRequestServer(int hospid, int locationid, int SpecialityID)
+    {
+        XYHIS.FrmInDrugRequestServer frm = new XYHIS.FrmInDrugRequestServer();
+
+        frm.GetReqByProc(hospid, locationid, SpecialityID);
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+
+    }
+
+    /// <summary>
+    /// 刷新病区申请数据，刷新多个
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInDrugRequestServerList(System.Collections.Generic.List<int> lst, int locationid, int SpecialityID)
+    {
+        XYHIS.FrmInDrugRequestServer frm = new XYHIS.FrmInDrugRequestServer();
+
+        frm.LoadDataList(lst, locationid, SpecialityID);
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+    }
+
+    /// <summary>
+    /// 刷新医嘱执行数据，hospid=0 则刷新多个
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInExecuteBillServerList(System.Collections.Generic.List<int> lst, int locationid, int SpecialityID)
+    {
+
+        XYHIS.FrmInExecuteBillServer frm = new XYHIS.FrmInExecuteBillServer();
+
+        frm.LoadDataList(lst, locationid, SpecialityID);
+
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+
+    }
+
+    /// <summary>
+    /// 刷新医嘱执行数据，hospid=0 则刷新整个locationid
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInExecuteBillServer(int hospid, int locationid, int SpecialityID)
+    {
+
+        XYHIS.FrmInExecuteBillServer frm = new XYHIS.FrmInExecuteBillServer();
+
+        frm.LoadData(hospid, locationid, SpecialityID);
+
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+
+    }
+
+    /// <summary>
+    /// 刷新申请退药数据，hospid=0 则刷新整个SpecialityID
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInDrugBackReqServer(int hospid, int SpecialityID)
+    {
+
+
+        XYHIS.FrmInDrugBackReqServer frm4 = new XYHIS.FrmInDrugBackReqServer();
+        frm4.LoadData(0, SpecialityID);
+
+
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+    }
+
+    /// <summary>
+    /// 刷新申请退药数据，hospid=0 则刷新多个
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInDrugBackReqServerList(System.Collections.Generic.List<int> lst, int SpecialityID)
+    {
+
+
+        XYHIS.FrmInDrugBackReqServer frm4 = new XYHIS.FrmInDrugBackReqServer();
+        frm4.LoadDataList(lst,0, SpecialityID);
+
+
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+    }
+
+
+
+    /// <summary>
+    /// 刷新门诊病人预收费用数据，mzRegId=0 则刷新整个locationid
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmOuChargeServerServer(int mzRegId)
+    {
+
+        XYHIS.FrmOuChargeServer frm = new XYHIS.FrmOuChargeServer();
+
+        frm.GetAutoRegOuHosInfo(mzRegId);
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+
+    }
+
+
+    /// <summary>
+    /// 批量刷新住院病人相关数据， 
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInListServer(System.Collections.Generic.List<int> lst,string type)
+    {
+        if (type == "Advice")
+            XYHIS.FrmInListServer.SetAdviceDataByList(lst);
+        else if (type == "InExecute")
+            XYHIS.FrmInListServer.SeInExecuteDataByList(lst);
+        else if (type == "InDrugReqdtl")
+            XYHIS.FrmInListServer.SetInDrugReqdtlDataByList(lst);
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+    }
+
+    /// <summary>
+    /// 刷新住院病人相关数据 
+    /// </summary>
+    /// <param name="hospid"></param>
+    /// <param name="locationid"></param>
+    /// <returns></returns>
+    [WebMethod]
+    public string SetFrmInListServerByPat(int hospid, string type)
+    {
+        if (type == "Advice")
+            XYHIS.FrmInListServer.SetAdviceData(hospid);
+        else if (type == "InExecute")
+            XYHIS.FrmInListServer.SetInExecuteData(hospid);
+        else if (type == "InDrugReqdtl")
+            XYHIS.FrmInListServer.SetInDrugReqdtlData(hospid);
+        return BLL.Common.Utils.GetSystemSetting("SockServer") + "刷新成功" + DateTime.Now.ToString();
+    }
+
+
+}
+
