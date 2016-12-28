@@ -1,3 +1,4 @@
+2016-12-28 更新
 AddBalanceRecord       停用
 AutoOPBillCharge       缴费(停用)
 CardNoCheck            检验诊疗卡是否存在
@@ -49,3 +50,5 @@ payOrder //缴费确认接口
 printRegInfo //取号接口
 refundPayCheck //退费预检查接口
 returnPay //退费接口
+
+
